@@ -1,0 +1,32 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Thêm sản phẩm', back: '/products' }) %>
+<%- include('../partials/formerror') %>
+<form method="post" action="/products" class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">Thông tin sản phẩm</div>
+      <div class="card-body row g-3">
+        <div class="col-sm-5"><label class="form-label" for="code">Mã sản phẩm *</label><input class="form-control mono" id="code" name="code" value="<%= p.code || '' %>" placeholder="AO-POLO" required></div>
+        <div class="col-sm-7"><label class="form-label" for="name">Tên sản phẩm *</label><input class="form-control" id="name" name="name" value="<%= p.name || '' %>" required></div>
+        <div class="col-sm-7"><label class="form-label" for="category_id">Nhóm</label>
+          <select class="form-select" id="category_id" name="category_id"><option value="">— Chọn —</option>
+            <% categories.forEach(c => { %><option value="<%= c.id %>" <%= String(p.category_id) === String(c.id) ? 'selected' : '' %>><%= c.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="col-sm-5"><label class="form-label" for="unit">Đơn vị tính</label><input class="form-control" id="unit" name="unit" value="<%= p.unit || '' %>"></div>
+        <div class="col-12"><label class="form-label" for="description">Mô tả</label><textarea class="form-control" id="description" name="description" rows="3"><%= p.description || '' %></textarea></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">Biến thể</div>
+      <div class="card-body d-flex flex-column gap-3">
+        <p class="text-body-secondary mb-0 small">Chọn giá trị cho từng thuộc tính. Hệ thống tạo mọi tổ hợp, ví dụ 2 màu × 3 size = 6 biến thể. Không chọn gì thì tạo 1 biến thể mặc định.</p>
+        <%- include('_attrpicker', { attributes, selected, prefix: 'n' }) %>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 d-flex gap-2"><button class="btn btn-primary" type="submit">Tạo sản phẩm</button><a class="btn btn-outline-secondary" href="/products">Huỷ</a></div>
+</form>
+<%- include('../partials/footer') %>

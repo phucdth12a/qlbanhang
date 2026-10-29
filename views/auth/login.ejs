@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đăng nhập · QL Bán hàng</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="login-page">
+  <main class="login-card card">
+    <div class="card-body p-4 d-flex flex-column gap-3">
+      <div class="d-flex align-items-center gap-2 login-brand"><i class="bi bi-box-seam"></i> QL Bán hàng</div>
+      <h1 class="h5 mb-0">Đăng nhập trang quản trị</h1>
+      <% if (error) { %><div class="alert alert-danger mb-0"><%= error %></div><% } %>
+      <form method="post" action="/login" class="d-flex flex-column gap-3">
+        <div>
+          <label class="form-label" for="username">Tên đăng nhập</label>
+          <input class="form-control" id="username" name="username" value="<%= username %>" required autofocus autocomplete="username">
+        </div>
+        <div>
+          <label class="form-label" for="password">Mật khẩu</label>
+          <input class="form-control" id="password" name="password" type="password" required autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary" type="submit">Đăng nhập</button>
+      </form>
+      <div class="small text-body-secondary border-top pt-3">
+        Tài khoản mẫu: <code>admin / admin123</code>, <code>thumua</code>, <code>nvkho</code>, <code>qlkho</code> (mật khẩu <code>123456</code>)
+      </div>
+    </div>
+  </main>
+</body>
+</html>

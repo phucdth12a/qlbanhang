@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+<% const editable = can('suppliers.manage'); %>
+<%- include('../partials/pagehead', { heading: s.id ? s.name : 'Thêm nhà cung cấp', back: '/suppliers',
+  actions: s.id && editable ? `<form method="post" action="/suppliers/${s.id}/delete" data-confirm="Xoá nhà cung cấp ${s.code}?"><button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Xoá</button></form>` : '' }) %>
+<%- include('../partials/formerror') %>
+<form method="post" action="/suppliers<%= s.id ? '/' + s.id : '' %>" class="card">
+  <fieldset class="card-body row g-3" <%= editable ? '' : 'disabled' %>>
+    <div class="col-md-3"><label class="form-label" for="code">Mã *</label><input class="form-control mono" id="code" name="code" value="<%= s.code || '' %>" placeholder="NCC0003" required></div>
+    <div class="col-md-9"><label class="form-label" for="name">Tên nhà cung cấp *</label><input class="form-control" id="name" name="name" value="<%= s.name || '' %>" required></div>
+    <div class="col-md-4"><label class="form-label" for="contact_name">Người liên hệ</label><input class="form-control" id="contact_name" name="contact_name" value="<%= s.contact_name || '' %>"></div>
+    <div class="col-md-4"><label class="form-label" for="phone">Điện thoại</label><input class="form-control" id="phone" name="phone" value="<%= s.phone || '' %>"></div>
+    <div class="col-md-4"><label class="form-label" for="email">Email</label><input class="form-control" id="email" name="email" type="email" value="<%= s.email || '' %>"></div>
+    <div class="col-md-8"><label class="form-label" for="address">Địa chỉ</label><input class="form-control" id="address" name="address" value="<%= s.address || '' %>"></div>
+    <div class="col-md-4"><label class="form-label" for="tax_code">Mã số thuế</label><input class="form-control mono" id="tax_code" name="tax_code" value="<%= s.tax_code || '' %>"></div>
+    <div class="col-12"><label class="form-label" for="note">Ghi chú</label><textarea class="form-control" id="note" name="note" rows="2"><%= s.note || '' %></textarea></div>
+    <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="1" <%= s.is_active ? 'checked' : '' %>><label class="form-check-label" for="is_active">Đang hợp tác</label></div></div>
+  </fieldset>
+  <% if (editable) { %><div class="card-footer d-flex gap-2"><button class="btn btn-primary" type="submit">Lưu</button><a class="btn btn-outline-secondary" href="/suppliers">Huỷ</a></div><% } %>
+</form>
+<% if (s.id && typeof pos !== 'undefined') { %>
+  <div class="card">
+    <div class="card-header">Phiếu mua hàng gần đây</div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead><tr><th>Mã PO</th><th>Ngày đặt</th><th>Trạng thái</th><th class="num">Tổng tiền</th></tr></thead>
+        <tbody>
+          <% if (!pos.length) { %><tr><td colspan="4" class="text-body-secondary">Chưa có phiếu mua hàng.</td></tr><% } %>
+          <% pos.forEach(po => { %><tr><td><a class="mono" href="/purchase-orders/<%= po.id %>"><%= po.code %></a></td><td><%= fmt.date(po.order_date) %></td><td><%- L.badge('poStatus', po.status) %></td><td class="num"><%= fmt.money(po.total_amount) %></td></tr><% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <%- include('../partials/history', { logs }) %>
+<% } %>
+<%- include('../partials/footer') %>

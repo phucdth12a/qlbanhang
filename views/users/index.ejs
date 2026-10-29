@@ -1,0 +1,22 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Người dùng', actions: '<a class="btn btn-primary" href="/users/new"><i class="bi bi-plus-lg"></i> Thêm người dùng</a>' }) %>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th></th></tr></thead>
+      <tbody>
+        <% users.forEach(u => { %>
+          <tr>
+            <td class="mono"><%= u.username %></td>
+            <td><%= u.full_name %></td>
+            <td><%= u.email || '' %></td>
+            <td><%- L.badge('role', u.role) %></td>
+            <td><%- u.is_active ? '<span class="badge text-bg-success">Hoạt động</span>' : '<span class="badge text-bg-secondary">Đã khoá</span>' %></td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="/users/<%= u.id %>/edit">Sửa</a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

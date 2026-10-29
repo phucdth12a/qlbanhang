@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Phiếu nhập kho', sub: 'Lập từ phiếu mua hàng. Hàng chỉ vào tồn kho sau khi phiếu được duyệt.' }) %>
+<% if (can('gr.create')) { %>
+  <form class="card" method="get" action="/goods-receipts/new">
+    <div class="card-body filters">
+      <div class="grow"><label class="form-label small" for="po">Tạo phiếu nhập từ phiếu mua</label>
+        <select class="form-select" id="po" name="po" required><option value="">— Chọn phiếu mua đang chờ hàng —</option>
+          <% openPos.forEach(p => { %><option value="<%= p.id %>"><%= p.code %> · <%= p.supplier_name %></option><% }) %>
+        </select>
+      </div>
+      <div><button class="btn btn-primary" type="submit" <%= openPos.length ? '' : 'disabled' %>><i class="bi bi-plus-lg"></i> Tạo phiếu nhập</button></div>
+    </div>
+  </form>
+<% } %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">Mã phiếu nhập / PO / số phiếu giao</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
+  <div><label class="form-label small" for="status">Trạng thái</label>
+    <select class="form-select" id="status" name="status"><option value="">Tất cả</option><% L.options('docStatus').forEach(o => { %><option value="<%= o.value %>" <%= f.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+  </div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã phiếu</th><th>Phiếu mua</th><th>Nhà cung cấp</th><th>Kho</th><th>Ngày nhập</th><th class="num">SL đạt</th><th class="num">Phát sinh</th><th>Người lập</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="9"><div class="empty-state"><i class="bi bi-box-arrow-in-down"></i>Chưa có phiếu nhập kho.</div></td></tr><% } %>
+        <% rows.forEach(g => { %>
+          <tr>
+            <td><a class="mono" href="/goods-receipts/<%= g.id %>"><%= g.code %></a></td>
+            <td><a class="mono" href="/purchase-orders/<%= g.purchase_order_id %>"><%= g.po_code %></a></td>
+            <td><%= g.supplier_name %></td>
+            <td class="mono"><%= g.warehouse_code %></td>
+            <td class="text-nowrap"><%= fmt.date(g.receipt_date) %></td>
+            <td class="num"><%= fmt.num(g.qty_accepted) %></td>
+            <td class="num <%= g.qty_issue ? 'text-danger fw-semibold' : '' %>"><%= g.qty_issue ? fmt.num(g.qty_issue) : '' %></td>
+            <td><%= g.full_name %></td>
+            <td><%- L.badge('docStatus', g.status) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

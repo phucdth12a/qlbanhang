@@ -1,0 +1,48 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Nhóm sản phẩm' }) %>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Tên nhóm</th><th>Nhóm cha</th><th class="num">Sản phẩm</th><th></th></tr></thead>
+          <tbody>
+            <% if (!categories.length) { %><tr><td colspan="4" class="text-body-secondary">Chưa có nhóm nào.</td></tr><% } %>
+            <% categories.forEach(c => { %>
+              <tr>
+                <td><%= c.parent_id ? '↳ ' : '' %><%= c.name %></td>
+                <td><%= c.parent_name || '' %></td>
+                <td class="num"><%= c.product_count %></td>
+                <td class="text-end text-nowrap">
+                  <% if (can('catalog.manage')) { %>
+                    <a class="btn btn-sm btn-outline-secondary" href="/categories?edit=<%= c.id %>">Sửa</a>
+                    <form method="post" action="/categories/<%= c.id %>/delete" class="d-inline" data-confirm="Xoá nhóm <%= c.name %>?"><button class="btn btn-sm btn-outline-danger" type="submit">Xoá</button></form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <% if (can('catalog.manage')) { %>
+  <div class="col-lg-4">
+    <form method="post" action="/categories" class="card">
+      <div class="card-header"><%= editing ? 'Sửa nhóm' : 'Thêm nhóm' %></div>
+      <div class="card-body d-flex flex-column gap-3">
+        <input type="hidden" name="id" value="<%= editing ? editing.id : '' %>">
+        <div><label class="form-label" for="name">Tên nhóm *</label><input class="form-control" id="name" name="name" value="<%= editing ? editing.name : '' %>" required></div>
+        <div><label class="form-label" for="parent_id">Nhóm cha</label>
+          <select class="form-select" id="parent_id" name="parent_id">
+            <option value="">— Không —</option>
+            <% categories.filter(c => !editing || c.id !== editing.id).forEach(c => { %><option value="<%= c.id %>" <%= editing && editing.parent_id === c.id ? 'selected' : '' %>><%= c.name %></option><% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="card-footer d-flex gap-2"><button class="btn btn-primary" type="submit">Lưu</button><% if (editing) { %><a class="btn btn-outline-secondary" href="/categories">Huỷ</a><% } %></div>
+    </form>
+  </div>
+  <% } %>
+</div>
+<%- include('../partials/footer') %>

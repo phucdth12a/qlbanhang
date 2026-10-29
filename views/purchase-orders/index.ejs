@@ -1,0 +1,37 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Phiếu mua hàng', actions: can('po.manage') ? '<a class="btn btn-primary" href="/purchase-orders/new"><i class="bi bi-plus-lg"></i> Tạo phiếu mua</a>' : '' }) %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">Mã phiếu</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
+  <div><label class="form-label small" for="status">Trạng thái</label>
+    <select class="form-select" id="status" name="status"><option value="">Tất cả</option><option value="OPEN" <%= f.status === 'OPEN' ? 'selected' : '' %>>Đang chờ hàng</option>
+      <% L.options('poStatus').forEach(o => { %><option value="<%= o.value %>" <%= f.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %>
+    </select>
+  </div>
+  <div><label class="form-label small" for="supplier_id">Nhà cung cấp</label>
+    <select class="form-select" id="supplier_id" name="supplier_id"><option value="">Tất cả</option><% suppliers.forEach(s => { %><option value="<%= s.id %>" <%= f.supplier_id === s.id ? 'selected' : '' %>><%= s.name %></option><% }) %></select>
+  </div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã PO</th><th>Nhà cung cấp</th><th>Kho</th><th>Ngày đặt</th><th>Dự kiến</th><th>Đã nhập / mua</th><th class="num">Tổng tiền</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-cart3"></i>Chưa có phiếu mua hàng.</div></td></tr><% } %>
+        <% rows.forEach(po => { const pct = po.qty_ordered ? Math.round(po.qty_received * 100 / po.qty_ordered) : 0; %>
+          <tr>
+            <td><a class="mono" href="/purchase-orders/<%= po.id %>"><%= po.code %></a></td>
+            <td><%= po.supplier_name %></td>
+            <td class="mono"><%= po.warehouse_code %></td>
+            <td class="text-nowrap"><%= fmt.date(po.order_date) %></td>
+            <td class="text-nowrap"><%= fmt.date(po.expected_date) %></td>
+            <td style="min-width:140px"><div class="small num text-start"><%= fmt.num(po.qty_received) %> / <%= fmt.num(po.qty_ordered) %></div><div class="progress progress-qty" role="progressbar" aria-label="Đã nhập" aria-valuenow="<%= pct %>" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width: <%= pct %>%"></div></div></td>
+            <td class="num"><%= fmt.money(po.total_amount) %></td>
+            <td><%- L.badge('poStatus', po.status) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

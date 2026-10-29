@@ -1,0 +1,13 @@
+<%
+  const parse = (v) => { if (!v) return null; try { return typeof v === 'string' ? JSON.parse(v) : v; } catch (e) { return null; } };
+  const o = parse(l.old_values) || {}; const n = parse(l.new_values) || {};
+  const keys = Array.from(new Set([...Object.keys(o), ...Object.keys(n)]));
+  const show = (v) => v === null || v === undefined ? '∅' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+%>
+<% keys.slice(0, 8).forEach(k => { %>
+  <div class="change"><code><%= k %></code>:
+    <% if (k in o) { %><span class="text-danger text-decoration-line-through"><%= show(o[k]).slice(0, 80) %></span> → <% } %>
+    <span class="text-success"><%= show(n[k]).slice(0, 80) %></span>
+  </div>
+<% }) %>
+<% if (keys.length > 8) { %><div class="text-body-secondary">… và <%= keys.length - 8 %> trường khác</div><% } %>

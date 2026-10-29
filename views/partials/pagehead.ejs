@@ -1,0 +1,8 @@
+<div class="page-head">
+  <div>
+    <% if (typeof back !== 'undefined' && back) { %><a class="back-link" href="<%= back %>"><i class="bi bi-arrow-left"></i> Quay lại</a><% } %>
+    <h1><%= heading %></h1>
+    <% if (typeof sub !== 'undefined' && sub) { %><div class="page-sub"><%- sub %></div><% } %>
+  </div>
+  <% if (typeof actions !== 'undefined' && actions) { %><div class="page-actions"><%- actions %></div><% } %>
+</div>

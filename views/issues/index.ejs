@@ -1,0 +1,41 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Hàng phát sinh', sub: 'Hàng lỗi, sai mẫu, giao thừa... ghi nhận khi nhập kho. Thu mua cập nhật kết quả làm việc với NCC tại đây.' }) %>
+<form class="filters" method="get">
+  <div><label class="form-label small" for="status">Trạng thái</label>
+    <select class="form-select" id="status" name="status">
+      <option value="OPEN_ALL" <%= f.status === 'OPEN_ALL' ? 'selected' : '' %>>Chưa xử lý xong</option>
+      <option value="" <%= f.status === '' ? 'selected' : '' %>>Tất cả</option>
+      <% L.options('issueStatus').forEach(o => { %><option value="<%= o.value %>" <%= f.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %>
+    </select>
+  </div>
+  <div><label class="form-label small" for="type">Loại</label>
+    <select class="form-select" id="type" name="type"><option value="">Tất cả</option><% L.options('issueType').forEach(o => { %><option value="<%= o.value %>" <%= f.type === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+  </div>
+  <div class="grow"><label class="form-label small" for="supplier_id">Nhà cung cấp</label>
+    <select class="form-select" id="supplier_id" name="supplier_id"><option value="">Tất cả</option><% suppliers.forEach(s => { %><option value="<%= s.id %>" <%= f.supplier_id === s.id ? 'selected' : '' %>><%= s.name %></option><% }) %></select>
+  </div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Loại</th><th class="num">SL</th><th>Mô tả</th><th>Phiếu nhập</th><th>NCC</th><th>Phụ trách</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-check2-circle"></i>Không có hàng phát sinh phù hợp.</div></td></tr><% } %>
+        <% rows.forEach(x => { %>
+          <tr>
+            <td><a class="mono" href="/issues/<%= x.id %>"><%= x.sku %></a></td>
+            <td><%- L.badge('issueType', x.issue_type) %></td>
+            <td class="num fw-semibold"><%= fmt.num(x.quantity) %></td>
+            <td><%= x.description || '' %></td>
+            <td><a class="mono" href="/goods-receipts/<%= x.gr_id %>"><%= x.gr_code %></a><% if (x.gr_status !== 'APPROVED') { %> <%- L.badge('docStatus', x.gr_status) %><% } %></td>
+            <td><%= x.supplier_name %></td>
+            <td><%= x.assigned_name || '—' %></td>
+            <td><%- L.badge('issueStatus', x.status) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

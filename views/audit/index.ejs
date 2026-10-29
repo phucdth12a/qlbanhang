@@ -1,0 +1,38 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Lịch sử thao tác', sub: 'Mọi thao tác thêm, sửa, xoá, gửi duyệt, duyệt... trên hệ thống. Hiển thị tối đa 500 dòng mới nhất.' }) %>
+<form class="filters" method="get">
+  <div><label class="form-label small" for="user_id">Người thực hiện</label>
+    <select class="form-select" id="user_id" name="user_id"><option value="">Tất cả</option><% users.forEach(u => { %><option value="<%= u.id %>" <%= f.user_id === u.id ? 'selected' : '' %>><%= u.full_name %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="entity_type">Đối tượng</label>
+    <select class="form-select" id="entity_type" name="entity_type"><option value="">Tất cả</option><% Object.entries(ENTITY_NAMES).forEach(([k, v]) => { %><option value="<%= k %>" <%= f.entity_type === k ? 'selected' : '' %>><%= v %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="action">Thao tác</label>
+    <select class="form-select" id="action" name="action"><option value="">Tất cả</option><% actions.forEach(a => { %><option value="<%= a %>" <%= f.action === a ? 'selected' : '' %>><%= a %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="from">Từ ngày</label><input class="form-control" type="date" id="from" name="from" value="<%= f.from %>"></div>
+  <div><label class="form-label small" for="to">Đến ngày</label><input class="form-control" type="date" id="to" name="to" value="<%= f.to %>"></div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Thao tác</th><th>Đối tượng</th><th>Thay đổi</th><th>IP</th></tr></thead>
+      <tbody>
+        <% if (!logs.length) { %><tr><td colspan="6"><div class="empty-state"><i class="bi bi-clock-history"></i>Không có thao tác phù hợp.</div></td></tr><% } %>
+        <% logs.forEach(l => { %>
+          <tr>
+            <td class="text-nowrap small"><%= fmt.datetime(l.created_at) %></td>
+            <td class="text-nowrap"><%= l.full_name || '—' %></td>
+            <td><span class="badge text-bg-light border"><%= l.action %></span></td>
+            <td class="text-nowrap"><%= ENTITY_NAMES[l.entity_type] || l.entity_type %>
+              <% if (LINKS[l.entity_type]) { %><a class="mono" href="<%= LINKS[l.entity_type] + l.entity_id %>">#<%= l.entity_id %></a><% } else { %><span class="mono">#<%= l.entity_id %></span><% } %></td>
+            <td class="small"><%- include('../partials/changes', { l }) %></td>
+            <td class="mono small text-body-secondary"><%= l.ip_address || '' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,18 @@
+<div class="card">
+  <div class="card-header">Lịch sử thao tác</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <tbody>
+        <% if (!logs.length) { %><tr><td class="text-body-secondary">Chưa có thao tác.</td></tr><% } %>
+        <% logs.forEach(l => { %>
+          <tr>
+            <td class="text-nowrap small text-body-secondary"><%= fmt.datetime(l.created_at) %></td>
+            <td class="text-nowrap"><span class="badge text-bg-light border"><%= l.action %></span></td>
+            <td class="text-nowrap"><%= l.full_name || '—' %></td>
+            <td class="small"><%- include('changes', { l }) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>

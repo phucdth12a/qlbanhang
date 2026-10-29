@@ -1,0 +1,75 @@
+<%- include('../partials/header') %>
+<%
+  let actions = '';
+  if (can('rr.create') && EDITABLE.includes(rr.status)) {
+    actions += `<a class="btn btn-outline-secondary" href="/returns/${rr.id}/edit"><i class="bi bi-pencil"></i> Sửa</a>
+      <form method="post" action="/returns/${rr.id}/submit"><button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> Gửi duyệt</button></form>
+      <form method="post" action="/returns/${rr.id}/cancel" data-confirm="Huỷ phiếu ${rr.code}?"><button class="btn btn-outline-danger" type="submit">Huỷ phiếu</button></form>`;
+  }
+%>
+<%- include('../partials/pagehead', { heading: 'Phiếu trả về ' + rr.code, back: '/returns', sub: L.badge('docStatus', rr.status) + ' ' + L.badge('returnSource', rr.source_type), actions }) %>
+
+<% if (rr.status === 'REJECTED' && rr.review_note) { %>
+  <div class="alert alert-danger"><strong>Bị từ chối:</strong> <%= rr.review_note %> <span class="small">(<%= rr.reviewed_by_name %>, <%= fmt.datetime(rr.reviewed_at) %>)</span></div>
+<% } %>
+
+<% if (rr.status === 'PENDING_APPROVAL' && can('rr.approve')) { %>
+  <div class="card border-warning">
+    <div class="card-header bg-warning-subtle">Duyệt phiếu trả về</div>
+    <div class="card-body row g-3">
+      <form method="post" action="/returns/<%= rr.id %>/approve" class="col-md-6 d-flex flex-column gap-2" data-confirm="Duyệt phiếu <%= rr.code %>? Hàng sẽ vào tồn kho.">
+        <label class="form-label mb-0" for="comment">Ghi chú khi duyệt</label>
+        <input class="form-control" id="comment" name="comment">
+        <div><button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Duyệt nhập kho</button></div>
+      </form>
+      <form method="post" action="/returns/<%= rr.id %>/reject" class="col-md-6 d-flex flex-column gap-2">
+        <label class="form-label mb-0" for="reason">Lý do từ chối *</label>
+        <input class="form-control" id="reason" name="reason" required>
+        <div><button class="btn btn-outline-danger" type="submit"><i class="bi bi-x-circle"></i> Từ chối</button></div>
+      </form>
+    </div>
+  </div>
+<% } %>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Kho</dt><dd><%= rr.warehouse_name %></dd></div>
+      <div><dt>Ngày nhận</dt><dd><%= fmt.date(rr.return_date) %></dd></div>
+      <div><dt>Mã đơn bán</dt><dd class="mono"><%= rr.order_code || '—' %></dd></div>
+      <div><dt>Mã vận đơn</dt><dd class="mono"><%= rr.tracking_code || '—' %></dd></div>
+      <div><dt>Khách hàng</dt><dd><%= rr.customer_name || '—' %><div class="small text-body-secondary"><%= rr.customer_phone || '' %></div></dd></div>
+      <div><dt>Lý do</dt><dd><%= rr.reason || '—' %></dd></div>
+      <div><dt>Người lập</dt><dd><%= rr.created_by_name %></dd></div>
+      <div><dt>Người duyệt</dt><dd><%= rr.reviewed_by_name ? rr.reviewed_by_name + ' · ' + fmt.datetime(rr.reviewed_at) : '—' %></dd></div>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Hàng trả về</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Tên</th><th class="num">SL</th><th>Tình trạng</th><th>Vị trí</th><th>Ô đang chứa</th><th>Lý do</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => { const conflict = rr.status !== 'APPROVED' && i.cur_qty > 0 && i.cur_status !== i.stock_status; %>
+          <tr class="<%= conflict ? 'table-danger' : '' %>">
+            <td class="mono"><%= i.sku %></td><td><%= i.name %></td><td class="num fw-semibold"><%= fmt.num(i.quantity) %></td>
+            <td><%- L.badge('stockStatus', i.stock_status) %></td>
+            <td class="mono"><%= i.location_code %></td>
+            <td><% if (i.cur_qty > 0) { %><%= fmt.num(i.cur_qty) %> <%- L.badge('stockStatus', i.cur_status) %><% } else { %><span class="text-body-secondary">trống</span><% } %>
+              <% if (conflict) { %><div class="small text-danger">Khác tình trạng, sẽ không duyệt được</div><% } %></td>
+            <td><%= L.label('returnReason', i.return_reason) %></td>
+            <td><%= i.note || '' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5"><%- include('../partials/approvals', { approvals }) %></div>
+  <div class="col-lg-7"><%- include('../partials/history', { logs }) %></div>
+</div>
+<%- include('../partials/footer') %>

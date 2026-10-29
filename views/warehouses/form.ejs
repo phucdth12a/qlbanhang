@@ -1,0 +1,5 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: w.id ? w.name : 'Thêm kho', back: '/warehouses' }) %>
+<%- include('../partials/formerror') %>
+<%- include('_form', { w, managers }) %>
+<%- include('../partials/footer') %>

@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Thẻ kho', back: '/stock', sub: 'Mỗi biến động tồn ghi 1 dòng, không sửa không xoá. Hiển thị tối đa 500 dòng mới nhất.' }) %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">SKU / vị trí</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
+  <div><label class="form-label small" for="warehouse_id">Kho</label>
+    <select class="form-select" id="warehouse_id" name="warehouse_id"><option value="">Tất cả</option><% warehouses.forEach(w => { %><option value="<%= w.id %>" <%= f.warehouse_id === w.id ? 'selected' : '' %>><%= w.name %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="type">Loại</label>
+    <select class="form-select" id="type" name="type"><option value="">Tất cả</option><% L.options('txType').forEach(o => { %><option value="<%= o.value %>" <%= f.type === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="from">Từ ngày</label><input class="form-control" type="date" id="from" name="from" value="<%= f.from %>"></div>
+  <div><label class="form-label small" for="to">Đến ngày</label><input class="form-control" type="date" id="to" name="to" value="<%= f.to %>"></div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Thời gian</th><th>Loại</th><th>Chứng từ</th><th>Kho</th><th>Vị trí</th><th>SKU</th><th>Tình trạng</th><th class="num">SL</th><th class="num">Tồn sau</th><th>Người thực hiện</th></tr></thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="10"><div class="empty-state"><i class="bi bi-journal-text"></i>Chưa có biến động phù hợp.</div></td></tr><% } %>
+        <% rows.forEach(t => { %>
+          <tr>
+            <td class="text-nowrap"><%= fmt.datetime(t.created_at) %></td>
+            <td><%- L.badge('txType', t.transaction_type) %></td>
+            <td><% if (t.ref_code) { %><a class="mono" href="/<%= t.reference_type === 'goods_receipt' ? 'goods-receipts' : 'returns' %>/<%= t.reference_id %>"><%= t.ref_code %></a><% } %></td>
+            <td class="mono"><%= t.warehouse_code %></td>
+            <td class="mono"><%= t.location_code %></td>
+            <td class="mono"><%= t.sku %></td>
+            <td><%- L.badge('stockStatus', t.stock_status) %></td>
+            <td class="num <%= t.quantity > 0 ? 'text-success' : 'text-danger' %>"><%= t.quantity > 0 ? '+' : '' %><%= fmt.num(t.quantity) %></td>
+            <td class="num"><%= fmt.num(t.balance_after) %></td>
+            <td><%= t.full_name %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

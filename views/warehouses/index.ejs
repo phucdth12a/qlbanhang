@@ -1,0 +1,24 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Kho & vị trí', actions: can('warehouses.manage') ? '<a class="btn btn-primary" href="/warehouses/new"><i class="bi bi-plus-lg"></i> Thêm kho</a>' : '' }) %>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã</th><th>Tên kho</th><th>Địa chỉ</th><th>Quản lý</th><th class="num">Vị trí</th><th class="num">Tổng tồn</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!warehouses.length) { %><tr><td colspan="7"><div class="empty-state"><i class="bi bi-building"></i>Chưa có kho.</div></td></tr><% } %>
+        <% warehouses.forEach(w => { %>
+          <tr>
+            <td><a class="mono" href="/warehouses/<%= w.id %>"><%= w.code %></a></td>
+            <td><a class="text-reset" href="/warehouses/<%= w.id %>"><%= w.name %></a></td>
+            <td><%= w.address || '' %></td>
+            <td><%= w.manager_name || '' %></td>
+            <td class="num"><%= w.location_count %></td>
+            <td class="num"><%= fmt.num(w.qty) %></td>
+            <td><%- w.is_active ? '<span class="badge text-bg-success">Hoạt động</span>' : '<span class="badge text-bg-secondary">Ngừng</span>' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,50 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: title, back: gr.id ? '/goods-receipts/' + gr.id : '/purchase-orders/' + po.id,
+  sub: `Phiếu mua <a class="mono" href="/purchase-orders/${po.id}">${po.code}</a> · ${po.supplier_name} · Kho: ${po.warehouse_name}` }) %>
+<%- include('../partials/formerror') %>
+<form method="post" action="/goods-receipts<%= gr.id ? '/' + gr.id : '' %>" class="d-flex flex-column gap-3">
+  <input type="hidden" name="purchase_order_id" value="<%= po.id %>">
+  <div class="card">
+    <div class="card-body row g-3">
+      <div class="col-md-3"><label class="form-label" for="receipt_date">Ngày nhập</label><input class="form-control" type="date" id="receipt_date" name="receipt_date" value="<%= gr.receipt_date || '' %>"></div>
+      <div class="col-md-3"><label class="form-label" for="delivery_note_no">Số phiếu giao của NCC</label><input class="form-control" id="delivery_note_no" name="delivery_note_no" value="<%= gr.delivery_note_no || '' %>"></div>
+      <div class="col-md-6"><label class="form-label" for="note">Ghi chú</label><input class="form-control" id="note" name="note" value="<%= gr.note || '' %>"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">Hàng nhận được</div>
+    <div class="card-body pb-0 small text-body-secondary">
+      <strong>SL đạt</strong> là số hàng tốt được nhập vào kho, không vượt quá số còn được nhập.
+      <strong>SL phát sinh</strong> là hàng lỗi, sai mẫu... không vào tồn, được báo cho bộ phận thu mua làm việc với NCC.
+      Dòng để trống cả hai ô sẽ không đưa vào phiếu.
+    </div>
+    <div class="table-responsive">
+      <table class="table mb-0 lines-table">
+        <thead><tr><th>Sản phẩm</th><th class="num">Mua</th><th class="num">Đã nhập</th><th class="num">Còn được nhập</th><th class="num">SL đạt</th><th>Vị trí cất</th><th class="num">SL phát sinh</th><th>Loại phát sinh</th><th>Mô tả phát sinh</th></tr></thead>
+        <tbody>
+          <% rows.forEach((r, i) => { const v = r.input; %>
+            <tr>
+              <td><input type="hidden" name="items[<%= i %>][purchase_order_item_id]" value="<%= r.id %>"><div class="mono"><%= r.sku %></div><div class="small text-body-secondary"><%= r.name %></div></td>
+              <td class="num align-middle"><%= fmt.num(r.quantity_ordered) %></td>
+              <td class="num align-middle"><%= fmt.num(r.quantity_received) %><% if (r.qty_pending) { %><div class="small text-warning-emphasis">+<%= r.qty_pending %> chờ duyệt</div><% } %></td>
+              <td class="num align-middle fw-semibold"><%= fmt.num(Math.max(r.remaining, 0)) %></td>
+              <td><input class="form-control form-control-sm text-end" type="number" min="0" max="<%= Math.max(r.remaining, 0) %>" step="1" name="items[<%= i %>][quantity_accepted]" value="<%= v.quantity_accepted || '' %>" aria-label="SL đạt <%= r.sku %>"></td>
+              <td><select class="form-select form-select-sm" name="items[<%= i %>][location_id]" aria-label="Vị trí cất <%= r.sku %>" style="min-width:130px"><option value="">— Vị trí —</option>
+                <% locations.forEach(l => { %><option value="<%= l.id %>" <%= String(v.location_id) === String(l.id) ? 'selected' : '' %>><%= l.code %></option><% }) %></select></td>
+              <td><input class="form-control form-control-sm text-end" type="number" min="0" step="1" name="items[<%= i %>][quantity_issue]" value="<%= v.quantity_issue || '' %>" aria-label="SL phát sinh <%= r.sku %>"></td>
+              <td><select class="form-select form-select-sm" name="items[<%= i %>][issue_type]" aria-label="Loại phát sinh <%= r.sku %>" style="min-width:140px"><option value="">—</option>
+                <% L.options('issueType').forEach(o => { %><option value="<%= o.value %>" <%= v.issue_type === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select></td>
+              <td><input class="form-control form-control-sm" name="items[<%= i %>][issue_description]" value="<%= v.issue_description || '' %>" placeholder="VD: rách đường may" aria-label="Mô tả phát sinh <%= r.sku %>" style="min-width:170px"></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="submit" name="submit_now" value="1"><i class="bi bi-send"></i> Lưu và gửi duyệt</button>
+    <button class="btn btn-outline-primary" type="submit">Lưu nháp</button>
+    <a class="btn btn-outline-secondary" href="<%= gr.id ? '/goods-receipts/' + gr.id : '/purchase-orders/' + po.id %>">Huỷ</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

@@ -1,0 +1,35 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Hàng trả về', sub: 'Hàng khách trả hoặc hoàn từ đơn vị vận chuyển. Hàng vào kho theo đúng tình trạng sau khi phiếu được duyệt.',
+  actions: can('rr.create') ? '<a class="btn btn-primary" href="/returns/new"><i class="bi bi-plus-lg"></i> Nhập hàng trả về</a>' : '' }) %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">Mã phiếu / mã đơn / vận đơn / SĐT</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
+  <div><label class="form-label small" for="status">Trạng thái</label>
+    <select class="form-select" id="status" name="status"><option value="">Tất cả</option><% L.options('docStatus').forEach(o => { %><option value="<%= o.value %>" <%= f.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+  </div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã phiếu</th><th>Nguồn</th><th>Mã đơn</th><th>Khách hàng</th><th>Kho</th><th>Ngày</th><th class="num">Mới</th><th class="num">Cũ</th><th class="num">Hỏng</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="10"><div class="empty-state"><i class="bi bi-arrow-return-left"></i>Chưa có phiếu hàng trả về.</div></td></tr><% } %>
+        <% rows.forEach(r => { %>
+          <tr>
+            <td><a class="mono" href="/returns/<%= r.id %>"><%= r.code %></a></td>
+            <td><%- L.badge('returnSource', r.source_type) %></td>
+            <td class="mono"><%= r.order_code || '' %></td>
+            <td><%= r.customer_name || '' %><div class="small text-body-secondary"><%= r.customer_phone || '' %></div></td>
+            <td class="mono"><%= r.warehouse_code %></td>
+            <td class="text-nowrap"><%= fmt.date(r.return_date) %></td>
+            <td class="num"><%= r.qty_new ? fmt.num(r.qty_new) : '' %></td>
+            <td class="num"><%= r.qty_used ? fmt.num(r.qty_used) : '' %></td>
+            <td class="num"><%= r.qty_damaged ? fmt.num(r.qty_damaged) : '' %></td>
+            <td><%- L.badge('docStatus', r.status) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

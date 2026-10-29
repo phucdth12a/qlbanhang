@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title ? title + ' · ' : '' %>QL Bán hàng</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/vendor/bootstrap-icons/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<%
+  const nav = (href, icon, text, count) => {
+    const active = href === '/' ? path === '/' : (path === href || path.startsWith(href + '/'));
+    return `<a class="nav-link${active ? ' active' : ''}" href="${href}"><i class="bi bi-${icon}"></i><span>${text}</span>${count ? `<span class="badge rounded-pill text-bg-warning ms-auto">${count}</span>` : ''}</a>`;
+  };
+%>
+<div class="app-shell">
+  <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Menu chính">
+    <div class="sidebar-brand">
+      <i class="bi bi-box-seam"></i>
+      <span>QL Bán hàng</span>
+      <button type="button" class="btn-close btn-close-white ms-auto d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Đóng"></button>
+    </div>
+    <nav class="sidebar-nav">
+      <%- nav('/', 'speedometer2', 'Tổng quan') %>
+      <div class="nav-group">Mua hàng</div>
+      <%- nav('/purchase-orders', 'cart3', 'Phiếu mua hàng') %>
+      <%- nav('/issues', 'exclamation-triangle', 'Hàng phát sinh', navCounts.issues) %>
+      <div class="nav-group">Kho</div>
+      <%- nav('/goods-receipts', 'box-arrow-in-down', 'Phiếu nhập kho', navCounts.gr) %>
+      <%- nav('/returns', 'arrow-return-left', 'Hàng trả về', navCounts.rr) %>
+      <%- nav('/stock', 'boxes', 'Tồn kho') %>
+      <div class="nav-group">Danh mục</div>
+      <%- nav('/products', 'tags', 'Sản phẩm') %>
+      <%- nav('/suppliers', 'truck', 'Nhà cung cấp') %>
+      <%- nav('/warehouses', 'building', 'Kho & vị trí') %>
+      <%- nav('/categories', 'diagram-3', 'Nhóm sản phẩm') %>
+      <%- nav('/attributes', 'sliders', 'Thuộc tính') %>
+      <% if (can('users.manage') || can('audit.view')) { %>
+        <div class="nav-group">Hệ thống</div>
+        <% if (can('users.manage')) { %><%- nav('/users', 'people', 'Người dùng') %><% } %>
+        <% if (can('audit.view')) { %><%- nav('/audit', 'clock-history', 'Lịch sử thao tác') %><% } %>
+      <% } %>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-outline-secondary btn-sm d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Mở menu">
+        <i class="bi bi-list"></i>
+      </button>
+      <div class="ms-auto d-flex align-items-center gap-3">
+        <div class="text-end lh-sm">
+          <div class="fw-semibold"><%= user.full_name %></div>
+          <div class="small text-body-secondary"><%= L.label('role', user.role) %></div>
+        </div>
+        <form method="post" action="/logout">
+          <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="bi bi-box-arrow-right"></i> Đăng xuất</button>
+        </form>
+      </div>
+    </header>
+    <main class="content">
+      <% if (flash) { %>
+        <div class="alert alert-<%= flash.type %> alert-dismissible fade show" role="alert">
+          <%= flash.message %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+        </div>
+      <% } %>

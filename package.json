@@ -1,0 +1,27 @@
+{
+  "name": "qlbanhang",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web admin quản lý bán hàng: sản phẩm, nhà cung cấp, kho, mua hàng, nhập kho, hàng trả về",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/db-init.js",
+    "db:reset": "node scripts/db-init.js --reset"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.2",
+    "dotenv": "^18.0.9",
+    "ejs": "^7.0.2",
+    "express": "^4.22.3",
+    "express-session": "^1.19.0",
+    "mysql2": "^3.24.6"
+  }
+}

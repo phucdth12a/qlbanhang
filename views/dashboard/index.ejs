@@ -1,0 +1,81 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Tổng quan', sub: 'Xin chào, ' + user.full_name }) %>
+
+<div class="stat-grid">
+  <a class="stat" href="/purchase-orders?status=OPEN"><span class="k">PO đang chờ hàng</span><span class="v"><%= fmt.num(stats.po_open) %></span></a>
+  <a class="stat <%= stats.gr_pending ? 'attn' : '' %>" href="/goods-receipts?status=PENDING_APPROVAL"><span class="k">Phiếu nhập chờ duyệt</span><span class="v"><%= fmt.num(stats.gr_pending) %></span></a>
+  <a class="stat <%= stats.rr_pending ? 'attn' : '' %>" href="/returns?status=PENDING_APPROVAL"><span class="k">Phiếu trả về chờ duyệt</span><span class="v"><%= fmt.num(stats.rr_pending) %></span></a>
+  <a class="stat <%= stats.issues_open ? 'attn' : '' %>" href="/issues"><span class="k">Hàng phát sinh chưa xử lý</span><span class="v"><%= fmt.num(stats.issues_open) %></span></a>
+  <a class="stat" href="/stock?status=NEW"><span class="k">Tồn hàng mới</span><span class="v"><%= fmt.num(stats.qty_new) %></span></a>
+  <a class="stat" href="/stock?status=OTHER"><span class="k">Tồn hàng cũ / hư hỏng</span><span class="v"><%= fmt.num(stats.qty_other) %></span></a>
+</div>
+
+<div class="row g-3">
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header">Phiếu chờ duyệt</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Phiếu</th><th>Loại</th><th>Người lập</th><th>Gửi lúc</th></tr></thead>
+          <tbody>
+            <% if (!pending.length) { %><tr><td colspan="4" class="text-body-secondary">Không có phiếu nào chờ duyệt.</td></tr><% } %>
+            <% pending.forEach(p => { %>
+              <tr>
+                <td><a class="mono" href="/<%= p.kind === 'gr' ? 'goods-receipts' : 'returns' %>/<%= p.id %>"><%= p.code %></a></td>
+                <td><%= p.kind === 'gr' ? 'Nhập kho ' + p.ref : 'Hàng trả về' %></td>
+                <td><%= p.full_name %></td>
+                <td class="text-nowrap"><%= fmt.datetime(p.submitted_at) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-6">
+    <div class="card h-100">
+      <div class="card-header">Hàng phát sinh chưa xử lý</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>SKU</th><th>Loại</th><th class="num">SL</th><th>NCC</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <% if (!issues.length) { %><tr><td colspan="5" class="text-body-secondary">Không có hàng phát sinh đang mở.</td></tr><% } %>
+            <% issues.forEach(i => { %>
+              <tr>
+                <td><a class="mono" href="/issues/<%= i.id %>"><%= i.sku %></a><div class="small text-body-secondary"><%= i.gr_code %></div></td>
+                <td><%- L.badge('issueType', i.issue_type) %></td>
+                <td class="num"><%= fmt.num(i.quantity) %></td>
+                <td><%= i.supplier_name %></td>
+                <td><%- L.badge('issueStatus', i.status) %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between"><span>Biến động kho gần đây</span><a class="small" href="/stock/transactions">Xem thẻ kho</a></div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>Thời gian</th><th>Loại</th><th>SKU</th><th>Vị trí</th><th>Tình trạng</th><th class="num">SL</th><th class="num">Tồn sau</th></tr></thead>
+      <tbody>
+        <% if (!txs.length) { %><tr><td colspan="7" class="text-body-secondary">Chưa có biến động kho.</td></tr><% } %>
+        <% txs.forEach(t => { %>
+          <tr>
+            <td class="text-nowrap"><%= fmt.datetime(t.created_at) %></td>
+            <td><%- L.badge('txType', t.transaction_type) %></td>
+            <td class="mono"><%= t.sku %></td>
+            <td class="mono"><%= t.location_code %></td>
+            <td><%- L.badge('stockStatus', t.stock_status) %></td>
+            <td class="num"><%= t.quantity > 0 ? '+' : '' %><%= fmt.num(t.quantity) %></td>
+            <td class="num"><%= fmt.num(t.balance_after) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,60 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: title, back: po.id ? '/purchase-orders/' + po.id : '/purchase-orders' }) %>
+<%- include('../partials/formerror') %>
+<%
+  const variantOptions = (selected) => {
+    let html = '<option value="">— Chọn sản phẩm —</option>'; let group = null;
+    variants.forEach(v => {
+      if (v.product_name !== group) { if (group !== null) html += '</optgroup>'; group = v.product_name; html += `<optgroup label="${group.replace(/"/g, '&quot;')}">`; }
+      html += `<option value="${v.id}" data-cost="${v.cost_price}" ${String(selected) === String(v.id) ? 'selected' : ''}>${v.sku} · ${v.name.replace(/</g, '&lt;')}</option>`;
+    });
+    return html + (group !== null ? '</optgroup>' : '');
+  };
+  const line = (it, i) => `
+    <tr>
+      <td><select class="form-select form-select-sm w-variant" name="items[${i}][variant_id]" data-variant aria-label="Sản phẩm" required>${variantOptions(it.variant_id)}</select></td>
+      <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="items[${i}][quantity_ordered]" value="${it.quantity_ordered || ''}" data-qty aria-label="Số lượng" required></td>
+      <td><input class="form-control form-control-sm text-end" type="number" min="0" step="any" name="items[${i}][unit_price]" value="${it.unit_price ?? ''}" data-price aria-label="Đơn giá"></td>
+      <td><input class="form-control form-control-sm text-end" type="number" min="0" step="any" name="items[${i}][tax_rate]" value="${it.tax_rate ?? 0}" data-tax aria-label="VAT %" style="min-width:70px"></td>
+      <td class="num align-middle" data-line-total></td>
+      <td><input class="form-control form-control-sm" name="items[${i}][note]" value="${(it.note || '').replace(/"/g, '&quot;')}" aria-label="Ghi chú"></td>
+      <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá dòng"><i class="bi bi-x-lg"></i></button></td>
+    </tr>`;
+%>
+<form method="post" action="/purchase-orders<%= po.id ? '/' + po.id : '' %>" class="d-flex flex-column gap-3" data-po-form>
+  <div class="card">
+    <div class="card-header">Thông tin chung</div>
+    <div class="card-body row g-3">
+      <div class="col-md-4"><label class="form-label" for="supplier_id">Nhà cung cấp *</label>
+        <select class="form-select" id="supplier_id" name="supplier_id" required><option value="">— Chọn —</option>
+          <% suppliers.forEach(s => { %><option value="<%= s.id %>" <%= String(po.supplier_id) === String(s.id) ? 'selected' : '' %>><%= s.code %> · <%= s.name %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-md-4"><label class="form-label" for="warehouse_id">Kho nhận *</label>
+        <select class="form-select" id="warehouse_id" name="warehouse_id" required><option value="">— Chọn —</option>
+          <% warehouses.forEach(w => { %><option value="<%= w.id %>" <%= String(po.warehouse_id) === String(w.id) ? 'selected' : '' %>><%= w.name %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-6 col-md-2"><label class="form-label" for="order_date">Ngày đặt</label><input class="form-control" type="date" id="order_date" name="order_date" value="<%= po.order_date || '' %>"></div>
+      <div class="col-6 col-md-2"><label class="form-label" for="expected_date">Ngày dự kiến</label><input class="form-control" type="date" id="expected_date" name="expected_date" value="<%= po.expected_date || '' %>"></div>
+      <div class="col-12"><label class="form-label" for="note">Ghi chú</label><input class="form-control" id="note" name="note" value="<%= po.note || '' %>"></div>
+    </div>
+  </div>
+  <div class="card" data-lines>
+    <div class="card-header d-flex justify-content-between align-items-center"><span>Hàng mua</span><button class="btn btn-sm btn-outline-primary" type="button" data-add-line><i class="bi bi-plus-lg"></i> Thêm dòng</button></div>
+    <div class="table-responsive">
+      <table class="table mb-0 lines-table">
+        <thead><tr><th>Sản phẩm</th><th class="num">Số lượng</th><th class="num">Đơn giá</th><th class="num">VAT %</th><th class="num">Thành tiền</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody data-lines-body><%- items.map((it, i) => line(it, i)).join('') %></tbody>
+      </table>
+    </div>
+    <template data-line-template><%- line({}, '__i__') %></template>
+    <div class="card-footer d-flex flex-column align-items-end gap-1">
+      <div>Tiền hàng: <strong data-subtotal>0 ₫</strong></div>
+      <div>Thuế VAT: <strong data-taxtotal>0 ₫</strong></div>
+      <div class="fs-5">Tổng cộng: <strong data-grandtotal>0 ₫</strong></div>
+    </div>
+  </div>
+  <div class="d-flex gap-2"><button class="btn btn-primary" type="submit">Lưu phiếu</button><a class="btn btn-outline-secondary" href="<%= po.id ? '/purchase-orders/' + po.id : '/purchase-orders' %>">Huỷ</a></div>
+</form>
+<%- include('../partials/footer') %>

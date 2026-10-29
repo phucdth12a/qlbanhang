@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Nhà cung cấp', actions: can('suppliers.manage') ? '<a class="btn btn-primary" href="/suppliers/new"><i class="bi bi-plus-lg"></i> Thêm nhà cung cấp</a>' : '' }) %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">Tìm kiếm</label><input class="form-control" id="q" name="q" value="<%= q %>" placeholder="Mã, tên, số điện thoại"></div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã</th><th>Tên</th><th>Liên hệ</th><th>Điện thoại</th><th>MST</th><th class="num">Số PO</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!suppliers.length) { %><tr><td colspan="7"><div class="empty-state"><i class="bi bi-truck"></i>Chưa có nhà cung cấp.</div></td></tr><% } %>
+        <% suppliers.forEach(s => { %>
+          <tr>
+            <td><a class="mono" href="/suppliers/<%= s.id %>"><%= s.code %></a></td>
+            <td><a class="text-reset" href="/suppliers/<%= s.id %>"><%= s.name %></a></td>
+            <td><%= s.contact_name || '' %></td>
+            <td><%= s.phone || '' %></td>
+            <td class="mono"><%= s.tax_code || '' %></td>
+            <td class="num"><%= s.po_count %></td>
+            <td><%- s.is_active ? '<span class="badge text-bg-success">Hoạt động</span>' : '<span class="badge text-bg-secondary">Ngừng</span>' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

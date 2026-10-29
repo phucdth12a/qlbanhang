@@ -1,0 +1,50 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Tồn kho', sub: 'Chỉ hiện vị trí còn hàng. Hàng mới mới được tính là tồn khả dụng để bán.',
+  actions: '<a class="btn btn-outline-primary" href="/stock/transactions"><i class="bi bi-journal-text"></i> Thẻ kho</a>' }) %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">SKU / tên</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
+  <div><label class="form-label small" for="warehouse_id">Kho</label>
+    <select class="form-select" id="warehouse_id" name="warehouse_id"><option value="">Tất cả</option><% warehouses.forEach(w => { %><option value="<%= w.id %>" <%= f.warehouse_id === w.id ? 'selected' : '' %>><%= w.name %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="location_id">Vị trí</label>
+    <select class="form-select" id="location_id" name="location_id"><option value="">Tất cả</option><% locations.forEach(l => { %><option value="<%= l.id %>" <%= f.location_id === l.id ? 'selected' : '' %>><%= l.code %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="status">Tình trạng</label>
+    <select class="form-select" id="status" name="status"><option value="">Tất cả</option>
+      <% L.options('stockStatus').forEach(o => { %><option value="<%= o.value %>" <%= f.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %>
+      <option value="OTHER" <%= f.status === 'OTHER' ? 'selected' : '' %>>Cũ + hư hỏng</option>
+    </select>
+  </div>
+  <div><label class="form-label small" for="view">Xem theo</label>
+    <select class="form-select" id="view" name="view"><option value="location">Vị trí</option><option value="variant" <%= f.view === 'variant' ? 'selected' : '' %>>Biến thể</option></select>
+  </div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <% if (f.view === 'variant') { %>
+        <thead><tr><th>SKU</th><th>Tên</th><th>Kho</th><th class="num">Mới</th><th class="num">Cũ</th><th class="num">Hỏng</th><th class="num">Đã giữ</th><th>Vị trí</th></tr></thead>
+        <tbody>
+          <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-boxes"></i>Không có hàng tồn phù hợp.</div></td></tr><% } %>
+          <% rows.forEach(r => { %>
+            <tr><td class="mono"><%= r.sku %></td><td><%= r.name %></td><td class="mono"><%= r.warehouse_code %></td>
+              <td class="num fw-semibold"><%= fmt.num(r.qty_new) %></td><td class="num"><%= fmt.num(r.qty_used) %></td><td class="num"><%= fmt.num(r.qty_damaged) %></td>
+              <td class="num"><%= fmt.num(r.reserved) %></td><td class="mono small"><%= r.locations %></td></tr>
+          <% }) %>
+        </tbody>
+      <% } else { %>
+        <thead><tr><th>Kho</th><th>Vị trí</th><th>SKU</th><th>Tên</th><th>Tình trạng</th><th class="num">Tồn</th><th class="num">Đã giữ</th><th>Cập nhật</th></tr></thead>
+        <tbody>
+          <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-boxes"></i>Không có hàng tồn phù hợp.</div></td></tr><% } %>
+          <% rows.forEach(r => { %>
+            <tr><td class="mono"><%= r.warehouse_code %></td><td class="mono"><%= r.location_code %></td><td class="mono"><%= r.sku %></td><td><%= r.name %></td>
+              <td><%- L.badge('stockStatus', r.stock_status) %></td><td class="num fw-semibold"><%= fmt.num(r.quantity) %></td><td class="num"><%= fmt.num(r.reserved_quantity) %></td>
+              <td class="small text-body-secondary text-nowrap"><%= fmt.datetime(r.updated_at) %></td></tr>
+          <% }) %>
+        </tbody>
+      <% } %>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

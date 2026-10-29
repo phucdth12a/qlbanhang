@@ -1,0 +1,89 @@
+<%- include('../partials/header') %>
+<%
+  let actions = '';
+  if (can('gr.create') && EDITABLE.includes(gr.status)) {
+    actions += `<a class="btn btn-outline-secondary" href="/goods-receipts/${gr.id}/edit"><i class="bi bi-pencil"></i> Sửa</a>
+      <form method="post" action="/goods-receipts/${gr.id}/submit"><button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> Gửi duyệt</button></form>
+      <form method="post" action="/goods-receipts/${gr.id}/cancel" data-confirm="Huỷ phiếu ${gr.code}?"><button class="btn btn-outline-danger" type="submit">Huỷ phiếu</button></form>`;
+  }
+%>
+<%- include('../partials/pagehead', { heading: 'Phiếu nhập ' + gr.code, back: '/goods-receipts', sub: L.badge('docStatus', gr.status), actions }) %>
+
+<% if (gr.status === 'REJECTED' && gr.review_note) { %>
+  <div class="alert alert-danger"><strong>Bị từ chối:</strong> <%= gr.review_note %> <span class="small">(<%= gr.reviewed_by_name %>, <%= fmt.datetime(gr.reviewed_at) %>)</span></div>
+<% } %>
+
+<% if (gr.status === 'PENDING_APPROVAL' && can('gr.approve')) { %>
+  <div class="card border-warning">
+    <div class="card-header bg-warning-subtle">Duyệt phiếu nhập</div>
+    <div class="card-body row g-3">
+      <form method="post" action="/goods-receipts/<%= gr.id %>/approve" class="col-md-6 d-flex flex-column gap-2" data-confirm="Duyệt phiếu <%= gr.code %>? Hàng sẽ vào tồn kho.">
+        <label class="form-label mb-0" for="comment">Ghi chú khi duyệt</label>
+        <input class="form-control" id="comment" name="comment">
+        <div><button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Duyệt nhập kho</button></div>
+      </form>
+      <form method="post" action="/goods-receipts/<%= gr.id %>/reject" class="col-md-6 d-flex flex-column gap-2">
+        <label class="form-label mb-0" for="reason">Lý do từ chối *</label>
+        <input class="form-control" id="reason" name="reason" required>
+        <div><button class="btn btn-outline-danger" type="submit"><i class="bi bi-x-circle"></i> Từ chối</button></div>
+      </form>
+    </div>
+  </div>
+<% } %>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Phiếu mua</dt><dd><a class="mono" href="/purchase-orders/<%= gr.purchase_order_id %>"><%= gr.po_code %></a></dd></div>
+      <div><dt>Nhà cung cấp</dt><dd><%= gr.supplier_name %></dd></div>
+      <div><dt>Kho</dt><dd><%= gr.warehouse_name %></dd></div>
+      <div><dt>Ngày nhập</dt><dd><%= fmt.date(gr.receipt_date) %></dd></div>
+      <div><dt>Số phiếu giao NCC</dt><dd><%= gr.delivery_note_no || '—' %></dd></div>
+      <div><dt>Người lập</dt><dd><%= gr.created_by_name %></dd></div>
+      <div><dt>Người duyệt</dt><dd><%= gr.reviewed_by_name ? gr.reviewed_by_name + ' · ' + fmt.datetime(gr.reviewed_at) : '—' %></dd></div>
+      <% if (gr.note) { %><div><dt>Ghi chú</dt><dd><%= gr.note %></dd></div><% } %>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Hàng nhận</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Tên</th><th>Vị trí</th><th class="num">SL giao</th><th class="num">SL đạt</th><th class="num">Phát sinh</th><th class="num">PO: đã nhập / mua</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => { %>
+          <tr>
+            <td class="mono"><%= i.sku %></td><td><%= i.name %></td><td class="mono"><%= i.location_code || '—' %></td>
+            <td class="num"><%= fmt.num(i.quantity_delivered) %></td>
+            <td class="num text-success fw-semibold"><%= fmt.num(i.quantity_accepted) %></td>
+            <td class="num <%= i.quantity_issue ? 'text-danger fw-semibold' : '' %>"><%= i.quantity_issue ? fmt.num(i.quantity_issue) : '' %></td>
+            <td class="num"><%= fmt.num(i.quantity_received) %> / <%= fmt.num(i.quantity_ordered) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<% if (issues.length) { %>
+  <div class="card border-danger-subtle">
+    <div class="card-header">Hàng phát sinh (báo thu mua)</div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead><tr><th>SKU</th><th>Loại</th><th class="num">SL</th><th>Mô tả</th><th>Trạng thái xử lý</th></tr></thead>
+        <tbody>
+          <% issues.forEach(x => { %>
+            <tr><td class="mono"><a href="/issues/<%= x.id %>"><%= x.sku %></a></td><td><%- L.badge('issueType', x.issue_type) %></td><td class="num"><%= x.quantity %></td><td><%= x.description || '' %></td><td><%- L.badge('issueStatus', x.status) %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<div class="row g-3">
+  <div class="col-lg-5"><%- include('../partials/approvals', { approvals }) %></div>
+  <div class="col-lg-7"><%- include('../partials/history', { logs }) %></div>
+</div>
+<%- include('../partials/footer') %>

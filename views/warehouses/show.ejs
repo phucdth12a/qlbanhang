@@ -1,0 +1,59 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: w.name, back: '/warehouses', sub: `<span class="mono">${w.code}</span>`,
+  actions: `<a class="btn btn-outline-primary" href="/stock?warehouse_id=${w.id}"><i class="bi bi-boxes"></i> Xem tồn kho</a>` }) %>
+<div class="row g-3">
+  <div class="col-xl-8">
+    <div class="card">
+      <div class="card-header">Vị trí trong kho (<%= locations.length %>)</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Mã vị trí</th><th>Tên</th><th>Loại</th><th class="num">Số SKU</th><th class="num">Tồn</th><th></th></tr></thead>
+          <tbody>
+            <% if (!locations.length) { %><tr><td colspan="6" class="text-body-secondary">Chưa có vị trí. Thêm vị trí ở khung bên cạnh.</td></tr><% } %>
+            <% locations.forEach(l => { %>
+              <tr class="<%= l.is_active ? '' : 'text-body-secondary' %>">
+                <td class="mono" style="padding-left: <%= 0.75 + l.depth * 1.25 %>rem"><%= l.depth ? '↳ ' : '' %><a href="/stock?location_id=<%= l.id %>"><%= l.code %></a></td>
+                <td><%= l.name || '' %><%= l.is_active ? '' : ' (ngừng dùng)' %></td>
+                <td><%- L.badge('locationType', l.location_type) %></td>
+                <td class="num"><%= l.sku_count %></td>
+                <td class="num"><%= fmt.num(l.qty) %></td>
+                <td class="text-end text-nowrap">
+                  <% if (can('warehouses.manage')) { %>
+                    <a class="btn btn-sm btn-outline-secondary" href="/warehouses/<%= w.id %>?edit=<%= l.id %>#loc-form">Sửa</a>
+                    <form method="post" action="/warehouses/<%= w.id %>/locations/<%= l.id %>/delete" class="d-inline" data-confirm="Xoá vị trí <%= l.code %>?"><button class="btn btn-sm btn-outline-danger" type="submit">Xoá</button></form>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-4 d-flex flex-column gap-3">
+    <% if (can('warehouses.manage')) { const e = editing || { is_active: 1, location_type: 'BIN' }; %>
+      <form method="post" action="/warehouses/<%= w.id %>/locations" class="card" id="loc-form">
+        <div class="card-header"><%= editing ? 'Sửa vị trí ' + editing.code : 'Thêm vị trí' %></div>
+        <div class="card-body d-flex flex-column gap-3">
+          <input type="hidden" name="location_id" value="<%= editing ? editing.id : '' %>">
+          <div class="row g-2">
+            <div class="col-6"><label class="form-label" for="lcode">Mã *</label><input class="form-control mono" id="lcode" name="code" value="<%= e.code || '' %>" placeholder="A-02-01" required></div>
+            <div class="col-6"><label class="form-label" for="ltype">Loại</label>
+              <select class="form-select" id="ltype" name="location_type"><% L.options('locationType').forEach(o => { %><option value="<%= o.value %>" <%= e.location_type === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+            </div>
+          </div>
+          <div><label class="form-label" for="lname">Tên</label><input class="form-control" id="lname" name="name" value="<%= e.name || '' %>"></div>
+          <div><label class="form-label" for="lparent">Thuộc vị trí</label>
+            <select class="form-select" id="lparent" name="parent_id"><option value="">— Cấp cao nhất —</option>
+              <% locations.filter(l => !editing || l.id !== editing.id).forEach(l => { %><option value="<%= l.id %>" <%= e.parent_id === l.id ? 'selected' : '' %>><%= '— '.repeat(l.depth) %><%= l.code %></option><% }) %>
+            </select>
+          </div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="l_active" name="is_active" value="1" <%= e.is_active ? 'checked' : '' %>><label class="form-check-label" for="l_active">Đang sử dụng</label></div>
+        </div>
+        <div class="card-footer d-flex gap-2"><button class="btn btn-primary" type="submit">Lưu vị trí</button><% if (editing) { %><a class="btn btn-outline-secondary" href="/warehouses/<%= w.id %>">Huỷ</a><% } %></div>
+      </form>
+    <% } %>
+    <%- include('_form', { w, managers }) %>
+  </div>
+</div>
+<%- include('../partials/footer') %>

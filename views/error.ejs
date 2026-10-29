@@ -1,0 +1,8 @@
+<% if (user) { %><%- include('partials/header') %><% } else { %><!doctype html><html lang="vi"><head><meta charset="utf-8"><title><%= title %></title><link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css"></head><body class="p-4"><% } %>
+<div class="empty-state">
+  <i class="bi bi-exclamation-circle"></i>
+  <h1 class="h4"><%= title %></h1>
+  <p><%= message %></p>
+  <a class="btn btn-primary" href="/">Về trang tổng quan</a>
+</div>
+<% if (user) { %><%- include('partials/footer') %><% } else { %></body></html><% } %>

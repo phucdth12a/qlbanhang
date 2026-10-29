@@ -1,0 +1,65 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: title, back: rr.id ? '/returns/' + rr.id : '/returns' }) %>
+<%- include('../partials/formerror') %>
+<%
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const variantOptions = (selected) => {
+    let html = '<option value="">— Chọn sản phẩm —</option>'; let group = null;
+    variants.forEach(v => {
+      if (v.product_name !== group) { if (group !== null) html += '</optgroup>'; group = v.product_name; html += `<optgroup label="${esc(group)}">`; }
+      html += `<option value="${v.id}" ${String(selected) === String(v.id) ? 'selected' : ''}>${esc(v.sku)} · ${esc(v.name)}</option>`;
+    });
+    return html + (group !== null ? '</optgroup>' : '');
+  };
+  const opts = (group, selected, empty) => (empty ? `<option value="">${empty}</option>` : '') + L.options(group).map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.text}</option>`).join('');
+  const locOptions = (selected) => '<option value="">— Vị trí —</option>' + locations.map(l => `<option value="${l.id}" data-warehouse="${l.warehouse_id}" ${String(selected) === String(l.id) ? 'selected' : ''}>${esc(l.code)}${l.name ? ' · ' + esc(l.name) : ''}</option>`).join('');
+  const line = (it, i) => `
+    <tr>
+      <td><select class="form-select form-select-sm w-variant" name="items[${i}][variant_id]" aria-label="Sản phẩm" required>${variantOptions(it.variant_id)}</select></td>
+      <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="items[${i}][quantity]" value="${it.quantity || ''}" aria-label="Số lượng" required></td>
+      <td><select class="form-select form-select-sm" name="items[${i}][stock_status]" aria-label="Tình trạng" style="min-width:150px">${opts('stockStatus', it.stock_status)}</select></td>
+      <td><select class="form-select form-select-sm" name="items[${i}][location_id]" data-location-select aria-label="Vị trí" required style="min-width:150px">${locOptions(it.location_id)}</select></td>
+      <td><select class="form-select form-select-sm" name="items[${i}][return_reason]" aria-label="Lý do trả" style="min-width:150px">${opts('returnReason', it.return_reason, '—')}</select></td>
+      <td><input class="form-control form-control-sm" name="items[${i}][note]" value="${esc(it.note)}" aria-label="Ghi chú"></td>
+      <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá dòng"><i class="bi bi-x-lg"></i></button></td>
+    </tr>`;
+%>
+<form method="post" action="/returns<%= rr.id ? '/' + rr.id : '' %>" class="d-flex flex-column gap-3">
+  <div class="card">
+    <div class="card-header">Thông tin hàng trả</div>
+    <div class="card-body row g-3">
+      <div class="col-md-4"><label class="form-label" for="warehouse_id">Kho nhận *</label>
+        <select class="form-select" id="warehouse_id" name="warehouse_id" data-warehouse-select required>
+          <% warehouses.forEach(w => { %><option value="<%= w.id %>" <%= String(rr.warehouse_id) === String(w.id) ? 'selected' : '' %>><%= w.name %></option><% }) %>
+        </select>
+      </div>
+      <div class="col-6 col-md-4"><label class="form-label" for="source_type">Nguồn</label>
+        <select class="form-select" id="source_type" name="source_type"><%- opts('returnSource', rr.source_type) %></select>
+      </div>
+      <div class="col-6 col-md-4"><label class="form-label" for="return_date">Ngày nhận</label><input class="form-control" type="date" id="return_date" name="return_date" value="<%= rr.return_date || '' %>"></div>
+      <div class="col-md-3"><label class="form-label" for="order_code">Mã đơn bán</label><input class="form-control mono" id="order_code" name="order_code" value="<%= rr.order_code || '' %>"></div>
+      <div class="col-md-3"><label class="form-label" for="tracking_code">Mã vận đơn</label><input class="form-control mono" id="tracking_code" name="tracking_code" value="<%= rr.tracking_code || '' %>"></div>
+      <div class="col-md-3"><label class="form-label" for="customer_name">Tên khách</label><input class="form-control" id="customer_name" name="customer_name" value="<%= rr.customer_name || '' %>"></div>
+      <div class="col-md-3"><label class="form-label" for="customer_phone">SĐT khách</label><input class="form-control" id="customer_phone" name="customer_phone" value="<%= rr.customer_phone || '' %>"></div>
+      <div class="col-md-6"><label class="form-label" for="reason">Lý do trả</label><input class="form-control" id="reason" name="reason" value="<%= rr.reason || '' %>"></div>
+      <div class="col-md-6"><label class="form-label" for="note">Ghi chú</label><input class="form-control" id="note" name="note" value="<%= rr.note || '' %>"></div>
+    </div>
+  </div>
+  <div class="card" data-lines>
+    <div class="card-header d-flex justify-content-between align-items-center"><span>Hàng trả về</span><button class="btn btn-sm btn-outline-primary" type="button" data-add-line><i class="bi bi-plus-lg"></i> Thêm dòng</button></div>
+    <div class="card-body pb-0 small text-body-secondary">Một vị trí chỉ chứa một tình trạng của mỗi sản phẩm. Ví dụ ô đang chứa áo M loại Mới thì hàng Đã qua sử dụng phải cất ô khác. Cùng sản phẩm nhưng khác tình trạng thì tách thành nhiều dòng.</div>
+    <div class="table-responsive">
+      <table class="table mb-0 lines-table">
+        <thead><tr><th>Sản phẩm</th><th class="num">SL</th><th>Tình trạng</th><th>Vị trí cất</th><th>Lý do</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody data-lines-body><%- items.map((it, i) => line(it, i)).join('') %></tbody>
+      </table>
+    </div>
+    <template data-line-template><%- line({ stock_status: 'NEW' }, '__i__') %></template>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="submit" name="submit_now" value="1"><i class="bi bi-send"></i> Lưu và gửi duyệt</button>
+    <button class="btn btn-outline-primary" type="submit">Lưu nháp</button>
+    <a class="btn btn-outline-secondary" href="<%= rr.id ? '/returns/' + rr.id : '/returns' %>">Huỷ</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

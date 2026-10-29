@@ -1,0 +1,40 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: `Phát sinh: ${x.quantity} × ${x.sku}`, back: '/issues', sub: L.badge('issueType', x.issue_type) + ' ' + L.badge('issueStatus', x.status) }) %>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-body">
+        <dl class="dl-grid">
+          <div><dt>Sản phẩm</dt><dd><span class="mono"><%= x.sku %></span><div class="small"><%= x.name %></div></dd></div>
+          <div><dt>Số lượng</dt><dd class="fw-semibold"><%= fmt.num(x.quantity) %></dd></div>
+          <div><dt>Mô tả</dt><dd><%= x.description || '—' %></dd></div>
+          <div><dt>Phiếu nhập</dt><dd><a class="mono" href="/goods-receipts/<%= x.gr_id %>"><%= x.gr_code %></a> · <%= fmt.date(x.receipt_date) %></dd></div>
+          <div><dt>Phiếu mua</dt><dd><a class="mono" href="/purchase-orders/<%= x.po_id %>"><%= x.po_code %></a></dd></div>
+          <div><dt>Nhà cung cấp</dt><dd><%= x.supplier_name %><div class="small text-body-secondary"><%= [x.contact_name, x.supplier_phone].filter(Boolean).join(' · ') %></div></dd></div>
+          <div><dt>Người báo</dt><dd><%= x.created_by_name %> · <%= fmt.datetime(x.created_at) %></dd></div>
+          <% if (x.resolved_by_name) { %><div><dt>Đóng bởi</dt><dd><%= x.resolved_by_name %> · <%= fmt.datetime(x.resolved_at) %></dd></div><% } %>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <form method="post" action="/issues/<%= x.id %>" class="card h-100">
+      <div class="card-header">Xử lý với nhà cung cấp</div>
+      <fieldset class="card-body row g-3" <%= can('issues.manage') ? '' : 'disabled' %>>
+        <div class="col-sm-6"><label class="form-label" for="status">Trạng thái</label>
+          <select class="form-select" id="status" name="status"><% L.options('issueStatus').forEach(o => { %><option value="<%= o.value %>" <%= x.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+        </div>
+        <div class="col-sm-6"><label class="form-label" for="assigned_to">Người phụ trách</label>
+          <select class="form-select" id="assigned_to" name="assigned_to"><option value="">— Chưa giao —</option><% purchasers.forEach(p => { %><option value="<%= p.id %>" <%= x.assigned_to === p.id ? 'selected' : '' %>><%= p.full_name %></option><% }) %></select>
+        </div>
+        <div class="col-12"><label class="form-label" for="resolution">Hướng xử lý</label>
+          <select class="form-select" id="resolution" name="resolution"><option value="">— Chưa chốt —</option><% L.options('resolution').forEach(o => { %><option value="<%= o.value %>" <%= x.resolution === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+        </div>
+        <div class="col-12"><label class="form-label" for="resolution_note">Ghi chú xử lý</label><textarea class="form-control" id="resolution_note" name="resolution_note" rows="3"><%= x.resolution_note || '' %></textarea></div>
+      </fieldset>
+      <% if (can('issues.manage')) { %><div class="card-footer"><button class="btn btn-primary" type="submit">Cập nhật</button></div><% } %>
+    </form>
+  </div>
+</div>
+<%- include('../partials/history', { logs }) %>
+<%- include('../partials/footer') %>

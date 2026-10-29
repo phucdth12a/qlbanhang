@@ -1,0 +1,70 @@
+<%- include('../partials/header') %>
+<%
+  let actions = '';
+  if (can('po.manage')) {
+    if (po.status === 'DRAFT') actions += `<a class="btn btn-outline-secondary" href="/purchase-orders/${po.id}/edit"><i class="bi bi-pencil"></i> Sửa</a>
+      <form method="post" action="/purchase-orders/${po.id}/confirm" data-confirm="Xác nhận phiếu mua ${po.code}? Sau khi xác nhận không sửa được."><button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle"></i> Xác nhận</button></form>`;
+    if (['DRAFT', 'CONFIRMED'].includes(po.status) && canCancel) actions += `<form method="post" action="/purchase-orders/${po.id}/cancel" data-confirm="Huỷ phiếu mua ${po.code}?"><button class="btn btn-outline-danger" type="submit">Huỷ phiếu</button></form>`;
+    if (['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(po.status)) actions += `<form method="post" action="/purchase-orders/${po.id}/close" data-confirm="Đóng phiếu ${po.code}? Phần còn thiếu sẽ không nhập nữa."><button class="btn btn-outline-dark" type="submit">Đóng phiếu</button></form>`;
+  }
+  if (can('gr.create') && ['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(po.status)) actions += `<a class="btn btn-success" href="/goods-receipts/new?po=${po.id}"><i class="bi bi-box-arrow-in-down"></i> Tạo phiếu nhập kho</a>`;
+%>
+<%- include('../partials/pagehead', { heading: 'Phiếu mua ' + po.code, back: '/purchase-orders', sub: L.badge('poStatus', po.status), actions }) %>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Nhà cung cấp</dt><dd><a href="/suppliers/<%= po.supplier_id %>"><%= po.supplier_name %></a><div class="small text-body-secondary"><%= po.supplier_phone || '' %></div></dd></div>
+      <div><dt>Kho nhận</dt><dd><%= po.warehouse_name %></dd></div>
+      <div><dt>Ngày đặt</dt><dd><%= fmt.date(po.order_date) %></dd></div>
+      <div><dt>Ngày dự kiến</dt><dd><%= fmt.date(po.expected_date) || '—' %></dd></div>
+      <div><dt>Người lập</dt><dd><%= po.created_by_name %></dd></div>
+      <div><dt>Xác nhận</dt><dd><%= po.confirmed_by_name ? po.confirmed_by_name + ' · ' + fmt.datetime(po.confirmed_at) : '—' %></dd></div>
+      <div><dt>Tổng tiền</dt><dd class="fw-semibold"><%= fmt.money(po.total_amount) %></dd></div>
+      <% if (po.note) { %><div><dt>Ghi chú</dt><dd><%= po.note %></dd></div><% } %>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Hàng mua</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Tên</th><th class="num">SL mua</th><th class="num">Đã nhập kho</th><th class="num">Chờ duyệt</th><th class="num">Còn lại</th><th class="num">Phát sinh</th><th class="num">Đơn giá</th><th class="num">Thành tiền</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => { const remain = i.quantity_ordered - i.quantity_received; %>
+          <tr>
+            <td class="mono"><%= i.sku %></td>
+            <td><%= i.name %></td>
+            <td class="num"><%= fmt.num(i.quantity_ordered) %></td>
+            <td class="num text-success fw-semibold"><%= fmt.num(i.quantity_received) %></td>
+            <td class="num"><%= i.qty_pending ? fmt.num(i.qty_pending) : '' %></td>
+            <td class="num"><%= remain ? fmt.num(remain) : '✓' %></td>
+            <td class="num <%= i.quantity_issue ? 'text-danger fw-semibold' : '' %>"><%= i.quantity_issue ? fmt.num(i.quantity_issue) : '' %></td>
+            <td class="num"><%= fmt.money(i.unit_price) %></td>
+            <td class="num"><%= fmt.money(i.line_total) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+      <tfoot><tr><td colspan="8" class="text-end">Tiền hàng <br>VAT<br><strong>Tổng cộng</strong></td><td class="num"><%= fmt.money(po.subtotal) %><br><%= fmt.money(po.tax_amount) %><br><strong><%= fmt.money(po.total_amount) %></strong></td></tr></tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Phiếu nhập kho của PO này</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã phiếu</th><th>Ngày nhập</th><th>Người lập</th><th class="num">SL đạt</th><th class="num">Phát sinh</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!receipts.length) { %><tr><td colspan="6" class="text-body-secondary">Chưa có phiếu nhập kho.</td></tr><% } %>
+        <% receipts.forEach(g => { %>
+          <tr><td><a class="mono" href="/goods-receipts/<%= g.id %>"><%= g.code %></a></td><td><%= fmt.date(g.receipt_date) %></td><td><%= g.full_name %></td>
+            <td class="num"><%= fmt.num(g.qty_accepted) %></td><td class="num"><%= g.qty_issue ? fmt.num(g.qty_issue) : '' %></td><td><%- L.badge('docStatus', g.status) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/history', { logs }) %>
+<%- include('../partials/footer') %>

@@ -1,0 +1,15 @@
+<div class="card">
+  <div class="card-header">Lịch sử duyệt</div>
+  <ul class="list-group list-group-flush">
+    <% if (!approvals.length) { %><li class="list-group-item text-body-secondary">Chưa có thao tác duyệt.</li><% } %>
+    <% approvals.forEach(a => { %>
+      <li class="list-group-item">
+        <div class="d-flex justify-content-between gap-2">
+          <span><%- L.badge('approvalAction', a.action) %> <strong><%= a.full_name %></strong></span>
+          <span class="small text-body-secondary"><%= fmt.datetime(a.acted_at) %></span>
+        </div>
+        <% if (a.comment) { %><div class="small mt-1"><%= a.comment %></div><% } %>
+      </li>
+    <% }) %>
+  </ul>
+</div>
