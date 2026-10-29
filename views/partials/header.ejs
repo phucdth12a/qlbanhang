@@ -27,12 +27,18 @@
     </div>
     <nav class="sidebar-nav">
       <%- nav('/', 'speedometer2', 'Tổng quan') %>
+      <div class="nav-group">Bán hàng</div>
+      <%- nav('/sales-orders', 'bag', 'Đơn bán hàng', navCounts.so_open) %>
+      <%- nav('/customers', 'person-lines-fill', 'Khách hàng') %>
       <div class="nav-group">Mua hàng</div>
       <%- nav('/purchase-orders', 'cart3', 'Phiếu mua hàng') %>
       <%- nav('/issues', 'exclamation-triangle', 'Hàng phát sinh', navCounts.issues) %>
       <div class="nav-group">Kho</div>
       <%- nav('/goods-receipts', 'box-arrow-in-down', 'Phiếu nhập kho', navCounts.gr) %>
+      <%- nav('/goods-issues', 'box-arrow-up', 'Phiếu xuất kho', navCounts.gi) %>
       <%- nav('/returns', 'arrow-return-left', 'Hàng trả về', navCounts.rr) %>
+      <%- nav('/transfers', 'arrow-left-right', 'Chuyển kho', navCounts.tr) %>
+      <%- nav('/adjustments', 'clipboard-check', 'Kiểm kê', navCounts.adj) %>
       <%- nav('/stock', 'boxes', 'Tồn kho') %>
       <div class="nav-group">Danh mục</div>
       <%- nav('/products', 'tags', 'Sản phẩm') %>

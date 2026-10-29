@@ -1,0 +1,51 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: title, back: adj.id ? '/adjustments/' + adj.id : '/adjustments' }) %>
+<%- include('../partials/formerror') %>
+<%
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const variantOptions = (selected) => {
+    let html = '<option value="">— Chọn sản phẩm —</option>'; let group = null;
+    variants.forEach(v => {
+      if (v.product_name !== group) { if (group !== null) html += '</optgroup>'; group = v.product_name; html += `<optgroup label="${esc(group)}">`; }
+      html += `<option value="${v.id}" ${String(selected) === String(v.id) ? 'selected' : ''}>${esc(v.sku)} · ${esc(v.name)}</option>`;
+    });
+    return html + (group !== null ? '</optgroup>' : '');
+  };
+  const locOptions = (selected) => '<option value="">— Vị trí —</option>' + locations.map(l => `<option value="${l.id}" data-warehouse="${l.warehouse_id}" ${String(selected) === String(l.id) ? 'selected' : ''}>${esc(l.code)}</option>`).join('');
+  const statusOptions = (selected) => L.options('stockStatus').map(o => `<option value="${o.value}" ${selected === o.value ? 'selected' : ''}>${o.text}</option>`).join('');
+  const line = (it, i) => `<tr>
+    <td><select class="form-select form-select-sm w-variant" name="items[${i}][variant_id]" aria-label="Sản phẩm">${variantOptions(it.variant_id)}</select></td>
+    <td><select class="form-select form-select-sm" name="items[${i}][location_id]" data-location-select aria-label="Vị trí" style="min-width:130px">${locOptions(it.location_id)}</select></td>
+    <td><select class="form-select form-select-sm" name="items[${i}][stock_status]" aria-label="Tình trạng" style="min-width:140px">${statusOptions(it.stock_status)}</select></td>
+    <td><input class="form-control form-control-sm text-end" type="number" min="0" step="1" name="items[${i}][quantity_counted]" value="${it.quantity_counted ?? ''}" aria-label="SL đếm được"></td>
+    <td><input class="form-control form-control-sm" name="items[${i}][note]" value="${esc(it.note)}" aria-label="Ghi chú"></td>
+    <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá dòng"><i class="bi bi-x-lg"></i></button></td></tr>`;
+%>
+<form method="post" action="/adjustments<%= adj.id ? '/' + adj.id : '' %>" class="d-flex flex-column gap-3">
+  <div class="card">
+    <div class="card-body row g-3">
+      <div class="col-md-4"><label class="form-label" for="warehouse_id">Kho *</label>
+        <select class="form-select" id="warehouse_id" name="warehouse_id" data-warehouse-select><% warehouses.forEach(w => { %><option value="<%= w.id %>" <%= String(adj.warehouse_id) === String(w.id) ? 'selected' : '' %>><%= w.name %></option><% }) %></select>
+      </div>
+      <div class="col-md-3"><label class="form-label" for="adjustment_date">Ngày kiểm</label><input class="form-control" type="date" id="adjustment_date" name="adjustment_date" value="<%= adj.adjustment_date || '' %>"></div>
+      <div class="col-md-5"><label class="form-label" for="reason">Lý do</label><input class="form-control" id="reason" name="reason" value="<%= adj.reason || '' %>" placeholder="VD: kiểm kê định kỳ tháng 10"></div>
+    </div>
+  </div>
+  <div class="card" data-lines>
+    <div class="card-header d-flex justify-content-between align-items-center"><span>Số đếm thực tế</span><button class="btn btn-sm btn-outline-primary" type="button" data-add-line><i class="bi bi-plus-lg"></i> Thêm dòng</button></div>
+    <div class="card-body pb-0 small text-body-secondary">Nhập đúng số đang có tại ô. Chọn tình trạng khác với tình trạng hiện tại nếu cần phân loại lại, ví dụ phát hiện hàng mới bị hỏng.</div>
+    <div class="table-responsive">
+      <table class="table mb-0 lines-table">
+        <thead><tr><th>Sản phẩm</th><th>Vị trí</th><th>Tình trạng</th><th class="num">SL đếm được</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody data-lines-body><%- items.map((it, i) => line(it, i)).join('') %></tbody>
+      </table>
+    </div>
+    <template data-line-template><%- line({ stock_status: 'NEW' }, '__i__') %></template>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="submit" name="submit_now" value="1"><i class="bi bi-send"></i> Lưu và gửi duyệt</button>
+    <button class="btn btn-outline-primary" type="submit">Lưu nháp</button>
+    <a class="btn btn-outline-secondary" href="<%= adj.id ? '/adjustments/' + adj.id : '/adjustments' %>">Huỷ</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

@@ -1,0 +1,91 @@
+<%- include('../partials/header') %>
+<%
+  let actions = '';
+  if (can('so.manage')) {
+    if (so.status === 'DRAFT') actions += `<a class="btn btn-outline-secondary" href="/sales-orders/${so.id}/edit"><i class="bi bi-pencil"></i> Sửa</a>
+      <form method="post" action="/sales-orders/${so.id}/confirm" data-confirm="Xác nhận đơn ${so.code}? Hệ thống sẽ giữ hàng cho đơn."><button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle"></i> Xác nhận</button></form>`;
+    if (['DRAFT', 'CONFIRMED'].includes(so.status) && canCancel) actions += `<form method="post" action="/sales-orders/${so.id}/cancel" data-confirm="Huỷ đơn ${so.code}?"><button class="btn btn-outline-danger" type="submit">Huỷ đơn</button></form>`;
+    if (['CONFIRMED', 'PARTIALLY_SHIPPED'].includes(so.status)) actions += `<form method="post" action="/sales-orders/${so.id}/close" data-confirm="Đóng đơn ${so.code}? Phần chưa xuất sẽ không giao nữa."><button class="btn btn-outline-dark" type="submit">Đóng đơn</button></form>`;
+  }
+  if (can('gi.create') && ['CONFIRMED', 'PARTIALLY_SHIPPED'].includes(so.status)) actions += `<a class="btn btn-success" href="/goods-issues/new?so=${so.id}"><i class="bi bi-box-arrow-up"></i> Tạo phiếu xuất kho</a>`;
+  if (can('rr.create') && ['PARTIALLY_SHIPPED', 'SHIPPED', 'CLOSED'].includes(so.status)) actions += `<a class="btn btn-outline-primary" href="/returns/new?so=${so.id}"><i class="bi bi-arrow-return-left"></i> Nhập hàng trả về</a>`;
+  const reserving = ['CONFIRMED', 'PARTIALLY_SHIPPED'].includes(so.status);
+%>
+<%- include('../partials/pagehead', { heading: 'Đơn bán ' + so.code, back: '/sales-orders', sub: L.badge('soStatus', so.status), actions }) %>
+
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Khách hàng</dt><dd><a href="/customers/<%= so.customer_id %>"><%= so.customer_name %></a><div class="small text-body-secondary"><%= so.customer_phone || '' %></div></dd></div>
+      <div><dt>Kho xuất</dt><dd><%= so.warehouse_name %></dd></div>
+      <div><dt>Ngày đặt</dt><dd><%= fmt.date(so.order_date) %></dd></div>
+      <div><dt>Địa chỉ giao</dt><dd><%= so.shipping_address || '—' %></dd></div>
+      <div><dt>Người lập</dt><dd><%= so.created_by_name %></dd></div>
+      <div><dt>Xác nhận</dt><dd><%= so.confirmed_by_name ? so.confirmed_by_name + ' · ' + fmt.datetime(so.confirmed_at) : '—' %></dd></div>
+      <div><dt>Tổng tiền</dt><dd class="fw-semibold"><%= fmt.money(so.total_amount) %></dd></div>
+      <% if (so.note) { %><div><dt>Ghi chú</dt><dd><%= so.note %></dd></div><% } %>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Hàng bán</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Tên</th><th class="num">SL đặt</th><th class="num">Đã xuất</th><th class="num">Chờ duyệt xuất</th><th class="num">Còn phải xuất</th><th class="num">Trả về</th><th class="num"><%= so.status === 'DRAFT' ? 'Khả dụng' : 'Khả dụng khác' %></th><th class="num">Đơn giá</th><th class="num">Thành tiền</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => { const remain = i.quantity_ordered - i.quantity_shipped; const short = so.status === 'DRAFT' && i.available < i.quantity_ordered; %>
+          <tr>
+            <td class="mono"><%= i.sku %></td>
+            <td><%= i.name %></td>
+            <td class="num"><%= fmt.num(i.quantity_ordered) %></td>
+            <td class="num text-success fw-semibold"><%= fmt.num(i.quantity_shipped) %></td>
+            <td class="num"><%= i.qty_pending ? fmt.num(i.qty_pending) : '' %></td>
+            <td class="num"><%= remain ? fmt.num(remain) : '✓' %></td>
+            <td class="num"><%= i.quantity_returned ? fmt.num(i.quantity_returned) : '' %></td>
+            <td class="num <%= short ? 'text-danger fw-semibold' : '' %>"><%= fmt.num(Math.max(i.available, 0)) %><% if (short) { %><div class="small">thiếu <%= i.quantity_ordered - Math.max(i.available, 0) %></div><% } %></td>
+            <td class="num"><%= fmt.money(i.unit_price) %></td>
+            <td class="num"><%= fmt.money(i.line_total) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+      <tfoot><tr><td colspan="9" class="text-end">Tiền hàng <br>VAT<br><strong>Tổng cộng</strong></td><td class="num"><%= fmt.money(so.subtotal) %><br><%= fmt.money(so.tax_amount) %><br><strong><%= fmt.money(so.total_amount) %></strong></td></tr></tfoot>
+    </table>
+  </div>
+  <div class="card-footer small text-body-secondary">
+    <% if (reserving) { %>Đơn đang giữ phần "còn phải xuất" trong tồn kho. Đơn khác không bán được lượng hàng này.<% } else if (so.status === 'DRAFT') { %>Đơn nháp chưa giữ hàng. Cột "Khả dụng" là tồn hàng mới trừ phần đang giữ cho các đơn khác.<% } else { %>Đơn không còn giữ hàng.<% } %>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header">Phiếu xuất kho</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Mã phiếu</th><th>Ngày</th><th>Người lập</th><th class="num">SL</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <% if (!issues.length) { %><tr><td colspan="5" class="text-body-secondary">Chưa có phiếu xuất.</td></tr><% } %>
+            <% issues.forEach(g => { %><tr><td><a class="mono" href="/goods-issues/<%= g.id %>"><%= g.code %></a></td><td><%= fmt.date(g.issue_date) %></td><td><%= g.full_name %></td><td class="num"><%= fmt.num(g.qty) %></td><td><%- L.badge('docStatus', g.status) %></td></tr><% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">Hàng trả về</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Mã phiếu</th><th class="num">SL</th><th>Trạng thái</th></tr></thead>
+          <tbody>
+            <% if (!returns.length) { %><tr><td colspan="3" class="text-body-secondary">Chưa có hàng trả về.</td></tr><% } %>
+            <% returns.forEach(r => { %><tr><td><a class="mono" href="/returns/<%= r.id %>"><%= r.code %></a></td><td class="num"><%= fmt.num(r.qty) %></td><td><%- L.badge('docStatus', r.status) %></td></tr><% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<%- include('../partials/history', { logs }) %>
+<%- include('../partials/footer') %>

@@ -1,4 +1,6 @@
-const ALL = ['ADMIN', 'PURCHASER', 'WAREHOUSE_STAFF', 'WAREHOUSE_MANAGER'];
+const ALL = ['ADMIN', 'PURCHASER', 'SALES', 'WAREHOUSE_STAFF', 'WAREHOUSE_MANAGER'];
+const WH = ['ADMIN', 'WAREHOUSE_STAFF', 'WAREHOUSE_MANAGER'];
+const WH_APPROVE = ['ADMIN', 'WAREHOUSE_MANAGER'];
 
 const PERMISSIONS = {
   'users.manage': ['ADMIN'],
@@ -13,6 +15,14 @@ const PERMISSIONS = {
   'rr.create': ['ADMIN', 'WAREHOUSE_STAFF', 'WAREHOUSE_MANAGER'],
   'rr.approve': ['ADMIN', 'WAREHOUSE_MANAGER'],
   'audit.view': ['ADMIN', 'WAREHOUSE_MANAGER'],
+  'customers.manage': ['ADMIN', 'SALES'],
+  'so.manage': ['ADMIN', 'SALES'],
+  'gi.create': WH,
+  'gi.approve': WH_APPROVE,
+  'tr.create': WH,
+  'tr.approve': WH_APPROVE,
+  'adj.create': WH,
+  'adj.approve': WH_APPROVE,
 };
 
 function can(user, perm) {

@@ -1,6 +1,6 @@
 <%- include('../partials/header') %>
-<%- include('../partials/pagehead', { heading: 'Tồn kho', sub: 'Chỉ hiện vị trí còn hàng. Hàng mới mới được tính là tồn khả dụng để bán.',
-  actions: '<a class="btn btn-outline-primary" href="/stock/transactions"><i class="bi bi-journal-text"></i> Thẻ kho</a>' }) %>
+<%- include('../partials/pagehead', { heading: 'Tồn kho', sub: 'Chỉ hiện vị trí còn hàng. Khả dụng = hàng mới − phần đang giữ cho đơn bán đã xác nhận.',
+  actions: '<a class="btn btn-outline-primary" href="/stock/transactions"><i class="bi bi-journal-text"></i> Thẻ kho</a>' + (can('adj.create') ? ' <a class="btn btn-outline-primary" href="/adjustments/new"><i class="bi bi-clipboard-check"></i> Kiểm kê</a>' : '') }) %>
 <form class="filters" method="get">
   <div class="grow"><label class="form-label small" for="q">SKU / tên</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
   <div><label class="form-label small" for="warehouse_id">Kho</label>
@@ -24,23 +24,25 @@
   <div class="table-responsive">
     <table class="table table-hover mb-0 align-middle">
       <% if (f.view === 'variant') { %>
-        <thead><tr><th>SKU</th><th>Tên</th><th>Kho</th><th class="num">Mới</th><th class="num">Cũ</th><th class="num">Hỏng</th><th class="num">Đã giữ</th><th>Vị trí</th></tr></thead>
+        <thead><tr><th>SKU</th><th>Tên</th><th>Kho</th><th class="num">Mới</th><th class="num">Giữ cho đơn</th><th class="num">Khả dụng</th><th class="num">Cũ</th><th class="num">Hỏng</th><th>Vị trí</th></tr></thead>
         <tbody>
-          <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-boxes"></i>Không có hàng tồn phù hợp.</div></td></tr><% } %>
+          <% if (!rows.length) { %><tr><td colspan="9"><div class="empty-state"><i class="bi bi-boxes"></i>Không có hàng tồn phù hợp.</div></td></tr><% } %>
           <% rows.forEach(r => { %>
             <tr><td class="mono"><%= r.sku %></td><td><%= r.name %></td><td class="mono"><%= r.warehouse_code %></td>
-              <td class="num fw-semibold"><%= fmt.num(r.qty_new) %></td><td class="num"><%= fmt.num(r.qty_used) %></td><td class="num"><%= fmt.num(r.qty_damaged) %></td>
-              <td class="num"><%= fmt.num(r.reserved) %></td><td class="mono small"><%= r.locations %></td></tr>
+              <td class="num"><%= fmt.num(r.qty_new) %></td><td class="num"><%= r.reserved ? fmt.num(r.reserved) : '' %></td>
+              <td class="num fw-semibold <%= r.available < 0 ? 'text-danger' : '' %>"><%= fmt.num(r.available) %></td>
+              <td class="num"><%= fmt.num(r.qty_used) %></td><td class="num"><%= fmt.num(r.qty_damaged) %></td><td class="mono small"><%= r.locations %></td></tr>
           <% }) %>
         </tbody>
       <% } else { %>
-        <thead><tr><th>Kho</th><th>Vị trí</th><th>SKU</th><th>Tên</th><th>Tình trạng</th><th class="num">Tồn</th><th class="num">Đã giữ</th><th>Cập nhật</th></tr></thead>
+        <thead><tr><th>Kho</th><th>Vị trí</th><th>SKU</th><th>Tên</th><th>Tình trạng</th><th class="num">Tồn</th><th>Cập nhật</th><th></th></tr></thead>
         <tbody>
           <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-boxes"></i>Không có hàng tồn phù hợp.</div></td></tr><% } %>
           <% rows.forEach(r => { %>
             <tr><td class="mono"><%= r.warehouse_code %></td><td class="mono"><%= r.location_code %></td><td class="mono"><%= r.sku %></td><td><%= r.name %></td>
-              <td><%- L.badge('stockStatus', r.stock_status) %></td><td class="num fw-semibold"><%= fmt.num(r.quantity) %></td><td class="num"><%= fmt.num(r.reserved_quantity) %></td>
-              <td class="small text-body-secondary text-nowrap"><%= fmt.datetime(r.updated_at) %></td></tr>
+              <td><%- L.badge('stockStatus', r.stock_status) %></td><td class="num fw-semibold"><%= fmt.num(r.quantity) %></td>
+              <td class="small text-body-secondary text-nowrap"><%= fmt.datetime(r.updated_at) %></td>
+              <td class="text-end"><% if (can('adj.create')) { %><a class="btn btn-sm btn-outline-secondary" href="/adjustments/new?stock=<%= r.id %>">Kiểm kê</a><% } %></td></tr>
           <% }) %>
         </tbody>
       <% } %>

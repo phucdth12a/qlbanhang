@@ -1,6 +1,7 @@
-// Tạo database MySQL local, chạy schema + trigger và nạp dữ liệu mẫu.
-//   npm run db:init    -> tạo nếu chưa có (không đụng dữ liệu cũ)
-//   npm run db:reset   -> XOÁ database rồi tạo lại từ đầu
+// Tạo database MySQL local, chạy schema + trigger + migration và nạp dữ liệu mẫu.
+//   npm run db:init     -> tạo nếu chưa có, chạy các migration còn thiếu (không đụng dữ liệu cũ)
+//   npm run db:migrate  -> giống db:init
+//   npm run db:reset    -> XOÁ database rồi tạo lại từ đầu
 require('dotenv').config({ quiet: true });
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +45,8 @@ async function main() {
     console.log('Bảng đã tồn tại, bỏ qua bước tạo bảng (dùng npm run db:reset để tạo lại)');
   }
 
+  await migrate(conn);
+
   const [[{ n }]] = await conn.query('SELECT COUNT(*) AS n FROM users');
   if (n === 0) {
     await seed(conn);
@@ -53,6 +56,27 @@ async function main() {
   console.log(`Xong. Database: ${DB_NAME} @ ${cfg.host}:${cfg.port}`);
 }
 
+// schema.sql là bản gốc (001). Các thay đổi sau nằm trong db/migrations/NNN_ten.sql, chạy theo thứ tự tên file.
+async function migrate(conn) {
+  await conn.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
+    version VARCHAR(150) NOT NULL PRIMARY KEY,
+    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+  await conn.query("INSERT IGNORE INTO schema_migrations (version) VALUES ('001_schema')");
+  const [rows] = await conn.query('SELECT version FROM schema_migrations');
+  const done = new Set(rows.map((r) => r.version));
+  const dir = path.join(__dirname, '..', 'db', 'migrations');
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort() : [];
+  for (const file of files) {
+    const version = file.replace(/\.sql$/, '');
+    if (done.has(version)) continue;
+    // Câu lệnh DDL của MySQL tự commit: nếu lỗi giữa chừng, sửa tay rồi chạy lại
+    await conn.query(fs.readFileSync(path.join(dir, file), 'utf8'));
+    await conn.query('INSERT INTO schema_migrations (version) VALUES (?)', [version]);
+    console.log(`Đã chạy migration ${file}`);
+  }
+}
+
 async function seed(conn) {
   const hash = (p) => bcrypt.hashSync(p, 10);
   await conn.query(
@@ -60,9 +84,13 @@ async function seed(conn) {
      (1, 'admin',  'Quản trị hệ thống', 'admin@example.com', ?, 'ADMIN'),
      (2, 'thumua', 'Nguyễn Văn Thu Mua', NULL, ?, 'PURCHASER'),
      (3, 'nvkho',  'Trần Thị Kho', NULL, ?, 'WAREHOUSE_STAFF'),
-     (4, 'qlkho',  'Lê Văn Quản Lý', NULL, ?, 'WAREHOUSE_MANAGER')`,
-    [hash('admin123'), hash('123456'), hash('123456'), hash('123456')]
+     (4, 'qlkho',  'Lê Văn Quản Lý', NULL, ?, 'WAREHOUSE_MANAGER'),
+     (5, 'banhang', 'Phạm Thị Bán Hàng', NULL, ?, 'SALES')`,
+    [hash('admin123'), hash('123456'), hash('123456'), hash('123456'), hash('123456')]
   );
+  await conn.query(`INSERT INTO customers (id, code, name, phone, address, created_by) VALUES
+    (1, 'KH0001', 'Shop Thời trang Mai Anh', '0987654321', '45 Nguyễn Trãi, Q.1, TP.HCM', 1),
+    (2, 'KH0002', 'Khách lẻ', NULL, NULL, 1)`);
 
   await conn.query(`INSERT INTO attributes (id, code, name) VALUES (1, 'SIZE', 'Kích cỡ'), (2, 'COLOR', 'Màu sắc')`);
   await conn.query(`INSERT INTO attribute_values (id, attribute_id, value, sort_order) VALUES

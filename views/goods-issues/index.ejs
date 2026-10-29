@@ -1,0 +1,59 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Phiếu xuất kho', sub: 'Hàng chỉ bị trừ khỏi tồn kho sau khi phiếu được duyệt.' }) %>
+<% if (can('gi.create')) { %>
+  <div class="row g-3">
+    <form class="col-lg-7" method="get" action="/goods-issues/new">
+      <div class="card h-100"><div class="card-body filters">
+        <div class="grow"><label class="form-label small" for="so">Xuất bán theo đơn</label>
+          <select class="form-select" id="so" name="so" required><option value="">— Chọn đơn bán đang chờ xuất —</option>
+            <% openSos.forEach(o => { %><option value="<%= o.id %>"><%= o.code %> · <%= o.customer_name %></option><% }) %>
+          </select>
+        </div>
+        <div><button class="btn btn-primary" type="submit" <%= openSos.length ? '' : 'disabled' %>><i class="bi bi-plus-lg"></i> Tạo phiếu xuất bán</button></div>
+      </div></div>
+    </form>
+    <form class="col-lg-5" method="get" action="/goods-issues/new">
+      <div class="card h-100"><div class="card-body filters">
+        <div class="grow"><label class="form-label small" for="purpose">Xuất khác</label>
+          <select class="form-select" id="purpose" name="purpose">
+            <% L.options('giPurpose').filter(o => o.value !== 'SALE').forEach(o => { %><option value="<%= o.value %>"><%= o.text %></option><% }) %>
+          </select>
+        </div>
+        <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-plus-lg"></i> Tạo phiếu</button></div>
+      </div></div>
+    </form>
+  </div>
+<% } %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">Mã phiếu / mã đơn</label><input class="form-control" id="q" name="q" value="<%= f.q %>"></div>
+  <div><label class="form-label small" for="fpurpose">Loại</label>
+    <select class="form-select" id="fpurpose" name="purpose"><option value="">Tất cả</option><% L.options('giPurpose').forEach(o => { %><option value="<%= o.value %>" <%= f.purpose === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+  </div>
+  <div><label class="form-label small" for="status">Trạng thái</label>
+    <select class="form-select" id="status" name="status"><option value="">Tất cả</option><% L.options('docStatus').forEach(o => { %><option value="<%= o.value %>" <%= f.status === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select>
+  </div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã phiếu</th><th>Loại</th><th>Đơn bán / NCC</th><th>Kho</th><th>Ngày</th><th class="num">SL</th><th>Người lập</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!rows.length) { %><tr><td colspan="8"><div class="empty-state"><i class="bi bi-box-arrow-up"></i>Chưa có phiếu xuất kho.</div></td></tr><% } %>
+        <% rows.forEach(g => { %>
+          <tr>
+            <td><a class="mono" href="/goods-issues/<%= g.id %>"><%= g.code %></a></td>
+            <td><%- L.badge('giPurpose', g.purpose) %></td>
+            <td><% if (g.so_code) { %><a class="mono" href="/sales-orders/<%= g.sales_order_id %>"><%= g.so_code %></a> · <%= g.customer_name %><% } else { %><%= g.supplier_name || '' %><% } %></td>
+            <td class="mono"><%= g.warehouse_code %></td>
+            <td class="text-nowrap"><%= fmt.date(g.issue_date) %></td>
+            <td class="num"><%= fmt.num(g.qty) %></td>
+            <td><%= g.full_name %></td>
+            <td><%- L.badge('docStatus', g.status) %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

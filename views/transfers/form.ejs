@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: title, back: tr.id ? '/transfers/' + tr.id : '/transfers' }) %>
+<%- include('../partials/formerror') %>
+<%
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const fromOpt = (sel) => '<option value="">— Chọn hàng ở kho đi —</option>' + stocks.map(s => `<option value="${s.id}" data-warehouse="${s.warehouse_id}" ${String(sel) === String(s.id) ? 'selected' : ''}>${esc(s.location_code)} · ${esc(s.sku)} · ${L.label('stockStatus', s.stock_status)} · còn ${s.quantity}</option>`).join('');
+  const toOpt = (sel) => '<option value="">— Vị trí đến —</option>' + locations.map(l => `<option value="${l.id}" data-warehouse="${l.warehouse_id}" ${String(sel) === String(l.id) ? 'selected' : ''}>${esc(l.code)}${l.name ? ' · ' + esc(l.name) : ''}</option>`).join('');
+  const line = (it, i) => `<tr>
+    <td><select class="form-select form-select-sm" name="items[${i}][stock_id]" data-location-select="from" aria-label="Hàng chuyển" style="min-width:300px">${fromOpt(it.stock_id)}</select></td>
+    <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="items[${i}][quantity]" value="${it.quantity || ''}" aria-label="Số lượng"></td>
+    <td><select class="form-select form-select-sm" name="items[${i}][to_location_id]" data-location-select="to" aria-label="Vị trí đến" style="min-width:160px">${toOpt(it.to_location_id)}</select></td>
+    <td><input class="form-control form-control-sm" name="items[${i}][note]" value="${esc(it.note)}" aria-label="Ghi chú"></td>
+    <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá dòng"><i class="bi bi-x-lg"></i></button></td></tr>`;
+  const whOpts = (sel) => warehouses.map(w => `<option value="${w.id}" ${String(sel) === String(w.id) ? 'selected' : ''}>${esc(w.name)}</option>`).join('');
+%>
+<form method="post" action="/transfers<%= tr.id ? '/' + tr.id : '' %>" class="d-flex flex-column gap-3">
+  <div class="card">
+    <div class="card-body row g-3">
+      <div class="col-md-3"><label class="form-label" for="from_warehouse_id">Từ kho *</label><select class="form-select" id="from_warehouse_id" name="from_warehouse_id" data-warehouse-select="from"><%- whOpts(tr.from_warehouse_id) %></select></div>
+      <div class="col-md-3"><label class="form-label" for="to_warehouse_id">Đến kho *</label><select class="form-select" id="to_warehouse_id" name="to_warehouse_id" data-warehouse-select="to"><%- whOpts(tr.to_warehouse_id) %></select></div>
+      <div class="col-md-2"><label class="form-label" for="transfer_date">Ngày chuyển</label><input class="form-control" type="date" id="transfer_date" name="transfer_date" value="<%= tr.transfer_date || '' %>"></div>
+      <div class="col-md-4"><label class="form-label" for="note">Ghi chú</label><input class="form-control" id="note" name="note" value="<%= tr.note || '' %>"></div>
+    </div>
+  </div>
+  <div class="card" data-lines>
+    <div class="card-header d-flex justify-content-between align-items-center"><span>Hàng chuyển</span><button class="btn btn-sm btn-outline-primary" type="button" data-add-line><i class="bi bi-plus-lg"></i> Thêm dòng</button></div>
+    <div class="card-body pb-0 small text-body-secondary">Hàng giữ nguyên tình trạng khi chuyển. Vị trí đến đang chứa cùng sản phẩm với tình trạng khác sẽ không nhận được.</div>
+    <div class="table-responsive">
+      <table class="table mb-0 lines-table">
+        <thead><tr><th>Lấy từ (vị trí · sản phẩm · tình trạng)</th><th class="num">SL</th><th>Vị trí đến</th><th>Ghi chú</th><th></th></tr></thead>
+        <tbody data-lines-body><%- items.map((it, i) => line(it, i)).join('') %></tbody>
+      </table>
+    </div>
+    <template data-line-template><%- line({}, '__i__') %></template>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="submit" name="submit_now" value="1"><i class="bi bi-send"></i> Lưu và gửi duyệt</button>
+    <button class="btn btn-outline-primary" type="submit">Lưu nháp</button>
+    <a class="btn btn-outline-secondary" href="<%= tr.id ? '/transfers/' + tr.id : '/transfers' %>">Huỷ</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

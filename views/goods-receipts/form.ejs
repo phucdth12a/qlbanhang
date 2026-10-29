@@ -14,27 +14,46 @@
   <div class="card">
     <div class="card-header">Hàng nhận được</div>
     <div class="card-body pb-0 small text-body-secondary">
-      <strong>SL đạt</strong> là số hàng tốt được nhập vào kho, không vượt quá số còn được nhập.
-      <strong>SL phát sinh</strong> là hàng lỗi, sai mẫu... không vào tồn, được báo cho bộ phận thu mua làm việc với NCC.
-      Dòng để trống cả hai ô sẽ không đưa vào phiếu.
+      <strong>Nhập đạt</strong> là hàng tốt vào kho, chia được vào nhiều vị trí (bấm "+ Vị trí"). Tổng không vượt quá số còn được nhập.
+      <strong>Phát sinh</strong> là hàng lỗi, sai mẫu... không vào tồn, được báo cho thu mua. Ghi được nhiều loại (bấm "+ Phát sinh").
+      Dòng để trống sẽ không đưa vào phiếu.
     </div>
     <div class="table-responsive">
       <table class="table mb-0 lines-table">
-        <thead><tr><th>Sản phẩm</th><th class="num">Mua</th><th class="num">Đã nhập</th><th class="num">Còn được nhập</th><th class="num">SL đạt</th><th>Vị trí cất</th><th class="num">SL phát sinh</th><th>Loại phát sinh</th><th>Mô tả phát sinh</th></tr></thead>
+        <thead><tr><th>Sản phẩm</th><th class="num">Mua</th><th class="num">Đã nhập</th><th class="num">Còn được nhập</th><th>Nhập đạt: vị trí · SL</th><th>Phát sinh: loại · SL · mô tả</th></tr></thead>
         <tbody>
-          <% rows.forEach((r, i) => { const v = r.input; %>
+          <% const esc = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+             rows.forEach((r, i) => {
+               const locOpt = (sel) => '<option value="">— Vị trí —</option>' + locations.map(l => `<option value="${l.id}" ${String(sel) === String(l.id) ? 'selected' : ''}>${esc(l.code)}</option>`).join('');
+               const typeOpt = (sel) => '<option value="">— Loại —</option>' + L.options('issueType').map(o => `<option value="${o.value}" ${sel === o.value ? 'selected' : ''}>${o.text}</option>`).join('');
+               const allocRow = (a, j) => `<tr>
+                 <td><select class="form-select form-select-sm" name="lines[${i}][alloc][${j}][location_id]" aria-label="Vị trí cất ${esc(r.sku)}" style="min-width:120px">${locOpt(a.location_id)}</select></td>
+                 <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="lines[${i}][alloc][${j}][quantity]" value="${a.quantity || ''}" aria-label="SL đạt ${esc(r.sku)}" style="width:80px"></td>
+                 <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá"><i class="bi bi-x-lg"></i></button></td></tr>`;
+               const issueRow = (x, k) => `<tr>
+                 <td><select class="form-select form-select-sm" name="lines[${i}][issues][${k}][issue_type]" aria-label="Loại phát sinh ${esc(r.sku)}" style="min-width:130px">${typeOpt(x.issue_type)}</select></td>
+                 <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="lines[${i}][issues][${k}][quantity]" value="${x.quantity || ''}" aria-label="SL phát sinh ${esc(r.sku)}" style="width:70px"></td>
+                 <td><input class="form-control form-control-sm" name="lines[${i}][issues][${k}][description]" value="${esc(x.description)}" placeholder="VD: rách đường may" aria-label="Mô tả phát sinh ${esc(r.sku)}" style="min-width:150px"></td>
+                 <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá"><i class="bi bi-x-lg"></i></button></td></tr>`; %>
             <tr>
-              <td><input type="hidden" name="items[<%= i %>][purchase_order_item_id]" value="<%= r.id %>"><div class="mono"><%= r.sku %></div><div class="small text-body-secondary"><%= r.name %></div></td>
-              <td class="num align-middle"><%= fmt.num(r.quantity_ordered) %></td>
-              <td class="num align-middle"><%= fmt.num(r.quantity_received) %><% if (r.qty_pending) { %><div class="small text-warning-emphasis">+<%= r.qty_pending %> chờ duyệt</div><% } %></td>
-              <td class="num align-middle fw-semibold"><%= fmt.num(Math.max(r.remaining, 0)) %></td>
-              <td><input class="form-control form-control-sm text-end" type="number" min="0" max="<%= Math.max(r.remaining, 0) %>" step="1" name="items[<%= i %>][quantity_accepted]" value="<%= v.quantity_accepted || '' %>" aria-label="SL đạt <%= r.sku %>"></td>
-              <td><select class="form-select form-select-sm" name="items[<%= i %>][location_id]" aria-label="Vị trí cất <%= r.sku %>" style="min-width:130px"><option value="">— Vị trí —</option>
-                <% locations.forEach(l => { %><option value="<%= l.id %>" <%= String(v.location_id) === String(l.id) ? 'selected' : '' %>><%= l.code %></option><% }) %></select></td>
-              <td><input class="form-control form-control-sm text-end" type="number" min="0" step="1" name="items[<%= i %>][quantity_issue]" value="<%= v.quantity_issue || '' %>" aria-label="SL phát sinh <%= r.sku %>"></td>
-              <td><select class="form-select form-select-sm" name="items[<%= i %>][issue_type]" aria-label="Loại phát sinh <%= r.sku %>" style="min-width:140px"><option value="">—</option>
-                <% L.options('issueType').forEach(o => { %><option value="<%= o.value %>" <%= v.issue_type === o.value ? 'selected' : '' %>><%= o.text %></option><% }) %></select></td>
-              <td><input class="form-control form-control-sm" name="items[<%= i %>][issue_description]" value="<%= v.issue_description || '' %>" placeholder="VD: rách đường may" aria-label="Mô tả phát sinh <%= r.sku %>" style="min-width:170px"></td>
+              <td><input type="hidden" name="lines[<%= i %>][po_item_id]" value="<%= r.id %>"><div class="mono"><%= r.sku %></div><div class="small text-body-secondary"><%= r.name %></div></td>
+              <td class="num"><%= fmt.num(r.quantity_ordered) %></td>
+              <td class="num"><%= fmt.num(r.quantity_received) %><% if (r.qty_pending) { %><div class="small text-warning-emphasis">+<%= r.qty_pending %> chờ duyệt</div><% } %></td>
+              <td class="num fw-semibold"><%= fmt.num(Math.max(r.remaining, 0)) %></td>
+              <td>
+                <div data-lines>
+                  <table class="table table-sm table-borderless mb-0"><tbody data-lines-body><%- r.alloc.map((a, j) => allocRow(a, j)).join('') %></tbody></table>
+                  <template data-line-template><%- allocRow({}, '__i__') %></template>
+                  <button class="btn btn-sm btn-link p-0" type="button" data-add-line>+ Vị trí</button>
+                </div>
+              </td>
+              <td>
+                <div data-lines>
+                  <table class="table table-sm table-borderless mb-0"><tbody data-lines-body><%- r.issues.map((x, k) => issueRow(x, k)).join('') %></tbody></table>
+                  <template data-line-template><%- issueRow({}, '__i__') %></template>
+                  <button class="btn btn-sm btn-link p-0" type="button" data-add-line>+ Phát sinh</button>
+                </div>
+              </td>
             </tr>
           <% }) %>
         </tbody>

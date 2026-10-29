@@ -36,7 +36,7 @@
     <dl class="dl-grid">
       <div><dt>Kho</dt><dd><%= rr.warehouse_name %></dd></div>
       <div><dt>Ngày nhận</dt><dd><%= fmt.date(rr.return_date) %></dd></div>
-      <div><dt>Mã đơn bán</dt><dd class="mono"><%= rr.order_code || '—' %></dd></div>
+      <div><dt>Mã đơn bán</dt><dd class="mono"><% if (rr.so_code) { %><a href="/sales-orders/<%= rr.sales_order_id %>"><%= rr.so_code %></a><% } else { %><%= rr.order_code || '—' %><% } %></dd></div>
       <div><dt>Mã vận đơn</dt><dd class="mono"><%= rr.tracking_code || '—' %></dd></div>
       <div><dt>Khách hàng</dt><dd><%= rr.customer_name || '—' %><div class="small text-body-secondary"><%= rr.customer_phone || '' %></div></dd></div>
       <div><dt>Lý do</dt><dd><%= rr.reason || '—' %></dd></div>

@@ -1,0 +1,42 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Phiếu xuất ' + gi.code, back: '/goods-issues',
+  sub: L.badge('docStatus', gi.status) + ' ' + L.badge('giPurpose', gi.purpose),
+  actions: include('../partials/docactions', { base: '/goods-issues', doc: gi, createPerm: 'gi.create' }) }) %>
+<%- include('../partials/review', { base: '/goods-issues', doc: gi, approvePerm: 'gi.approve' }) %>
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Kho xuất</dt><dd><%= gi.warehouse_name %></dd></div>
+      <% if (gi.so_code) { %><div><dt>Đơn bán</dt><dd><a class="mono" href="/sales-orders/<%= gi.sales_order_id %>"><%= gi.so_code %></a> · <%= gi.customer_name %></dd></div><% } %>
+      <% if (gi.supplier_name) { %><div><dt>Trả cho NCC</dt><dd><%= gi.supplier_name %></dd></div><% } %>
+      <div><dt>Ngày xuất</dt><dd><%= fmt.date(gi.issue_date) %></dd></div>
+      <div><dt>Người lập</dt><dd><%= gi.created_by_name %></dd></div>
+      <div><dt>Người duyệt</dt><dd><%= gi.reviewed_by_name ? gi.reviewed_by_name + ' · ' + fmt.datetime(gi.reviewed_at) : '—' %></dd></div>
+      <% if (gi.note) { %><div><dt>Ghi chú</dt><dd><%= gi.note %></dd></div><% } %>
+    </dl>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">Hàng xuất</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Tên</th><th>Vị trí</th><th>Tình trạng</th><th class="num">SL xuất</th><th class="num">Tồn ô hiện tại</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => { const short = gi.status !== 'APPROVED' && (i.cur_qty || 0) < i.quantity; %>
+          <tr class="<%= short ? 'table-danger' : '' %>">
+            <td class="mono"><%= i.sku %></td><td><%= i.name %></td><td class="mono"><%= i.location_code %></td>
+            <td><%- L.badge('stockStatus', i.stock_status) %></td>
+            <td class="num fw-semibold"><%= fmt.num(i.quantity) %></td>
+            <td class="num"><%= fmt.num(i.cur_qty || 0) %><% if (short) { %><div class="small text-danger">Không đủ hàng</div><% } %></td>
+            <td><%= i.note || '' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-5"><%- include('../partials/approvals', { approvals }) %></div>
+  <div class="col-lg-7"><%- include('../partials/history', { logs }) %></div>
+</div>
+<%- include('../partials/footer') %>

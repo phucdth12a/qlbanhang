@@ -6,7 +6,7 @@
     let html = '<option value="">— Chọn sản phẩm —</option>'; let group = null;
     variants.forEach(v => {
       if (v.product_name !== group) { if (group !== null) html += '</optgroup>'; group = v.product_name; html += `<optgroup label="${group.replace(/"/g, '&quot;')}">`; }
-      html += `<option value="${v.id}" data-cost="${v.cost_price}" ${String(selected) === String(v.id) ? 'selected' : ''}>${v.sku} · ${v.name.replace(/</g, '&lt;')}</option>`;
+      html += `<option value="${v.id}" data-default-price="${v.cost_price}" ${String(selected) === String(v.id) ? 'selected' : ''}>${v.sku} · ${v.name.replace(/</g, '&lt;')}</option>`;
     });
     return html + (group !== null ? '</optgroup>' : '');
   };

@@ -13,23 +13,21 @@ const EDITABLE = ['DRAFT', 'REJECTED'];
 
 function parseForm(b) {
   const header = { receipt_date: str(b.receipt_date) || today(), delivery_note_no: str(b.delivery_note_no), note: str(b.note) };
-  const items = toArray(b.items)
-    .map((r) => ({
-      purchase_order_item_id: int(r.purchase_order_item_id),
-      location_id: int(r.location_id) || null,
-      quantity_accepted: int(r.quantity_accepted),
-      quantity_issue: int(r.quantity_issue),
-      issue_type: str(r.issue_type),
-      issue_description: str(r.issue_description),
-      note: str(r.note),
-    }));
-  return { header, items, filled: items.filter((r) => r.quantity_accepted > 0 || r.quantity_issue > 0) };
+  const lines = toArray(b.lines).map((l) => ({
+    purchase_order_item_id: int(l.po_item_id),
+    alloc: toArray(l.alloc).map((a) => ({ location_id: int(a.location_id) || null, quantity: int(a.quantity) })),
+    issues: toArray(l.issues).map((x) => ({ issue_type: str(x.issue_type), quantity: int(x.quantity), description: str(x.description) })),
+  }));
+  return { header, lines };
 }
 
-async function renderForm(res, { gr, po, items, error, status = 200 }) {
-  const lines = await svc.poLines(db.pool, po.id, gr.id || 0);
-  const byPoItem = new Map(items.map((i) => [i.purchase_order_item_id, i]));
-  const rows = lines.map((l) => ({ ...l, input: byPoItem.get(l.id) || {} }));
+async function renderForm(res, { gr, po, lines, error, status = 200 }) {
+  const poRows = await svc.poLines(db.pool, po.id, gr.id || 0);
+  const byPoItem = new Map(lines.map((l) => [l.purchase_order_item_id, l]));
+  const rows = poRows.map((r) => {
+    const input = byPoItem.get(r.id) || {};
+    return { ...r, alloc: input.alloc && input.alloc.length ? input.alloc : [{}], issues: input.issues && input.issues.length ? input.issues : [{}] };
+  });
   res.status(status).render('goods-receipts/form', {
     title: gr.id ? `Sửa phiếu nhập ${gr.code}` : 'Tạo phiếu nhập kho',
     gr,
@@ -82,7 +80,7 @@ router.get(
       flash(req, 'warning', 'Chọn một phiếu mua hàng đã xác nhận và còn hàng chưa nhập.');
       return res.redirect('/goods-receipts');
     }
-    await renderForm(res, { gr: { receipt_date: today() }, po, items: [], error: null });
+    await renderForm(res, { gr: { receipt_date: today() }, po, lines: [], error: null });
   })
 );
 
@@ -97,13 +95,13 @@ router.post(
     try {
       if (!['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(po.status)) throw new AppError('Phiếu mua không còn nhận hàng.');
       const id = await db.tx(async (conn) => {
-        await svc.validateLines(conn, { poId: po.id, warehouseId: po.warehouse_id, items: form.filled, checkLocations: submitNow });
+        const filled = await svc.validateLines(conn, { poId: po.id, warehouseId: po.warehouse_id, lines: form.lines, checkLocations: submitNow });
         const code = await nextCode(conn, 'GR');
         const [r] = await conn.query('INSERT INTO goods_receipts SET ?', [
           { ...form.header, code, purchase_order_id: po.id, warehouse_id: po.warehouse_id, status: 'DRAFT', created_by: req.session.user.id },
         ]);
-        await svc.saveItems(conn, req, r.insertId, form.filled);
-        await audit(conn, req, 'CREATE', 'goods_receipts', r.insertId, null, { code, po: po.code, ...form.header, lines: form.filled.length });
+        await svc.saveItems(conn, req, r.insertId, filled);
+        await audit(conn, req, 'CREATE', 'goods_receipts', r.insertId, null, { code, po: po.code, ...form.header, lines: filled.length });
         if (submitNow) {
           await conn.query("UPDATE goods_receipts SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = ?", [r.insertId]);
           await svc.logApproval(conn, req, r.insertId, 'SUBMIT', 'DRAFT', 'PENDING_APPROVAL');
@@ -113,7 +111,7 @@ router.post(
       flash(req, 'success', submitNow ? 'Đã tạo phiếu nhập và gửi duyệt.' : 'Đã lưu phiếu nhập (nháp).');
       res.redirect(`/goods-receipts/${id}`);
     } catch (err) {
-      await renderForm(res, { gr: form.header, po, items: form.items, error: userMessage(err), status: 422 });
+      await renderForm(res, { gr: form.header, po, lines: form.lines, error: userMessage(err), status: 422 });
     }
   })
 );
@@ -168,13 +166,7 @@ router.get(
       flash(req, 'warning', 'Chỉ sửa được phiếu Nháp hoặc bị Từ chối.');
       return res.redirect(`/goods-receipts/${gr.id}`);
     }
-    const items = await db.query(
-      `SELECT gi.*, x.issue_type, x.description AS issue_description FROM goods_receipt_items gi
-         LEFT JOIN goods_receipt_issues x ON x.id = (SELECT MIN(id) FROM goods_receipt_issues WHERE goods_receipt_item_id = gi.id)
-        WHERE gi.goods_receipt_id = ?`,
-      [gr.id]
-    );
-    await renderForm(res, { gr, po: await loadPo(gr.purchase_order_id), items, error: null });
+    await renderForm(res, { gr, po: await loadPo(gr.purchase_order_id), lines: await svc.linesFromDb(db.pool, gr.id), error: null });
   })
 );
 
@@ -192,10 +184,10 @@ router.post(
       await db.tx(async (conn) => {
         const [[cur]] = await conn.query('SELECT status, receipt_date, delivery_note_no, note FROM goods_receipts WHERE id = ? FOR UPDATE', [id]);
         if (!EDITABLE.includes(cur.status)) throw new AppError('Chỉ sửa được phiếu Nháp hoặc bị Từ chối.');
-        await svc.validateLines(conn, { poId: po.id, warehouseId: gr.warehouse_id, grId: id, items: form.filled, checkLocations: submitNow });
+        const filled = await svc.validateLines(conn, { poId: po.id, warehouseId: gr.warehouse_id, grId: id, lines: form.lines, checkLocations: submitNow });
         await conn.query('UPDATE goods_receipts SET ? WHERE id = ?', [form.header, id]);
-        await svc.saveItems(conn, req, id, form.filled);
-        await audit(conn, req, 'UPDATE', 'goods_receipts', id, { receipt_date: cur.receipt_date, delivery_note_no: cur.delivery_note_no, note: cur.note }, { ...form.header, lines: form.filled.length });
+        await svc.saveItems(conn, req, id, filled);
+        await audit(conn, req, 'UPDATE', 'goods_receipts', id, { receipt_date: cur.receipt_date, delivery_note_no: cur.delivery_note_no, note: cur.note }, { ...form.header, lines: filled.length });
         if (submitNow) {
           await conn.query("UPDATE goods_receipts SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = ?", [id]);
           await svc.logApproval(conn, req, id, 'SUBMIT', cur.status, 'PENDING_APPROVAL');
@@ -204,7 +196,7 @@ router.post(
       flash(req, 'success', submitNow ? 'Đã lưu và gửi duyệt.' : 'Đã lưu phiếu nhập.');
       res.redirect(`/goods-receipts/${id}`);
     } catch (err) {
-      await renderForm(res, { gr: { ...gr, ...form.header }, po, items: form.items, error: userMessage(err), status: 422 });
+      await renderForm(res, { gr: { ...gr, ...form.header }, po, lines: form.lines, error: userMessage(err), status: 422 });
     }
   })
 );
@@ -217,8 +209,7 @@ router.post(
     await db.tx(async (conn) => {
       const [[gr]] = await conn.query('SELECT * FROM goods_receipts WHERE id = ? FOR UPDATE', [id]);
       if (!EDITABLE.includes(gr.status)) throw new AppError('Phiếu không ở trạng thái Nháp / Từ chối.');
-      const [items] = await conn.query('SELECT * FROM goods_receipt_items WHERE goods_receipt_id = ?', [id]);
-      await svc.validateLines(conn, { poId: gr.purchase_order_id, warehouseId: gr.warehouse_id, grId: id, items, checkLocations: true, checkIssueType: false });
+      await svc.validateLines(conn, { poId: gr.purchase_order_id, warehouseId: gr.warehouse_id, grId: id, lines: await svc.linesFromDb(conn, id), checkLocations: true });
       await conn.query("UPDATE goods_receipts SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = ?", [id]);
       await svc.logApproval(conn, req, id, 'SUBMIT', gr.status, 'PENDING_APPROVAL');
     });

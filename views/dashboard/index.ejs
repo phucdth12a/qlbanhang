@@ -2,9 +2,11 @@
 <%- include('../partials/pagehead', { heading: 'Tổng quan', sub: 'Xin chào, ' + user.full_name }) %>
 
 <div class="stat-grid">
+  <a class="stat" href="/sales-orders?status=OPEN"><span class="k">Đơn bán chờ xuất</span><span class="v"><%= fmt.num(stats.so_open) %></span></a>
   <a class="stat" href="/purchase-orders?status=OPEN"><span class="k">PO đang chờ hàng</span><span class="v"><%= fmt.num(stats.po_open) %></span></a>
   <a class="stat <%= stats.gr_pending ? 'attn' : '' %>" href="/goods-receipts?status=PENDING_APPROVAL"><span class="k">Phiếu nhập chờ duyệt</span><span class="v"><%= fmt.num(stats.gr_pending) %></span></a>
   <a class="stat <%= stats.rr_pending ? 'attn' : '' %>" href="/returns?status=PENDING_APPROVAL"><span class="k">Phiếu trả về chờ duyệt</span><span class="v"><%= fmt.num(stats.rr_pending) %></span></a>
+  <a class="stat <%= stats.other_pending ? 'attn' : '' %>" href="/goods-issues?status=PENDING_APPROVAL"><span class="k">Xuất / chuyển / kiểm kê chờ duyệt</span><span class="v"><%= fmt.num(stats.other_pending) %></span></a>
   <a class="stat <%= stats.issues_open ? 'attn' : '' %>" href="/issues"><span class="k">Hàng phát sinh chưa xử lý</span><span class="v"><%= fmt.num(stats.issues_open) %></span></a>
   <a class="stat" href="/stock?status=NEW"><span class="k">Tồn hàng mới</span><span class="v"><%= fmt.num(stats.qty_new) %></span></a>
   <a class="stat" href="/stock?status=OTHER"><span class="k">Tồn hàng cũ / hư hỏng</span><span class="v"><%= fmt.num(stats.qty_other) %></span></a>
@@ -21,8 +23,9 @@
             <% if (!pending.length) { %><tr><td colspan="4" class="text-body-secondary">Không có phiếu nào chờ duyệt.</td></tr><% } %>
             <% pending.forEach(p => { %>
               <tr>
-                <td><a class="mono" href="/<%= p.kind === 'gr' ? 'goods-receipts' : 'returns' %>/<%= p.id %>"><%= p.code %></a></td>
-                <td><%= p.kind === 'gr' ? 'Nhập kho ' + p.ref : 'Hàng trả về' %></td>
+                <% const K = { gr: ['goods-receipts', 'Nhập kho ' + p.ref], rr: ['returns', 'Hàng trả về'], gi: ['goods-issues', 'Xuất kho · ' + L.label('giPurpose', p.ref)], tr: ['transfers', 'Chuyển kho'], adj: ['adjustments', 'Kiểm kê'] }[p.kind]; %>
+                <td><a class="mono" href="/<%= K[0] %>/<%= p.id %>"><%= p.code %></a></td>
+                <td><%= K[1] %></td>
                 <td><%= p.full_name %></td>
                 <td class="text-nowrap"><%= fmt.datetime(p.submitted_at) %></td>
               </tr>

@@ -12,6 +12,10 @@ router.get(
          (SELECT COUNT(*) FROM purchase_orders WHERE status IN ('CONFIRMED','PARTIALLY_RECEIVED')) AS po_open,
          (SELECT COUNT(*) FROM goods_receipts WHERE status = 'PENDING_APPROVAL') AS gr_pending,
          (SELECT COUNT(*) FROM return_receipts WHERE status = 'PENDING_APPROVAL') AS rr_pending,
+         (SELECT COUNT(*) FROM sales_orders WHERE status IN ('CONFIRMED','PARTIALLY_SHIPPED')) AS so_open,
+         (SELECT COUNT(*) FROM goods_issues WHERE status = 'PENDING_APPROVAL')
+           + (SELECT COUNT(*) FROM stock_transfers WHERE status = 'PENDING_APPROVAL')
+           + (SELECT COUNT(*) FROM stock_adjustments WHERE status = 'PENDING_APPROVAL') AS other_pending,
          (SELECT COUNT(*) FROM goods_receipt_issues x JOIN goods_receipt_items gi ON gi.id = x.goods_receipt_item_id JOIN goods_receipts g ON g.id = gi.goods_receipt_id
            WHERE x.status NOT IN ('RESOLVED','REJECTED') AND g.status IN ('PENDING_APPROVAL','APPROVED')) AS issues_open,
          (SELECT COALESCE(SUM(quantity),0) FROM inventory_stocks WHERE stock_status = 'NEW') AS qty_new,
@@ -25,6 +29,15 @@ router.get(
        SELECT 'rr', r.id, r.code, r.submitted_at, u.full_name, r.order_code
          FROM return_receipts r JOIN users u ON u.id = r.created_by
         WHERE r.status = 'PENDING_APPROVAL'
+       UNION ALL
+       SELECT 'gi', g.id, g.code, g.submitted_at, u.full_name, g.purpose
+         FROM goods_issues g JOIN users u ON u.id = g.created_by WHERE g.status = 'PENDING_APPROVAL'
+       UNION ALL
+       SELECT 'tr', t.id, t.code, t.submitted_at, u.full_name, NULL
+         FROM stock_transfers t JOIN users u ON u.id = t.created_by WHERE t.status = 'PENDING_APPROVAL'
+       UNION ALL
+       SELECT 'adj', a.id, a.code, a.submitted_at, u.full_name, NULL
+         FROM stock_adjustments a JOIN users u ON u.id = a.created_by WHERE a.status = 'PENDING_APPROVAL'
        ORDER BY submitted_at LIMIT 10`
     );
     const issues = await db.query(

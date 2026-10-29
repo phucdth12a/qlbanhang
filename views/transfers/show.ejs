@@ -1,0 +1,43 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Phiếu chuyển ' + tr.code, back: '/transfers', sub: L.badge('docStatus', tr.status),
+  actions: include('../partials/docactions', { base: '/transfers', doc: tr, createPerm: 'tr.create' }) }) %>
+<%- include('../partials/review', { base: '/transfers', doc: tr, approvePerm: 'tr.approve' }) %>
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Từ kho</dt><dd><%= tr.from_name %></dd></div>
+      <div><dt>Đến kho</dt><dd><%= tr.to_name %></dd></div>
+      <div><dt>Ngày chuyển</dt><dd><%= fmt.date(tr.transfer_date) %></dd></div>
+      <div><dt>Người lập</dt><dd><%= tr.created_by_name %></dd></div>
+      <div><dt>Người duyệt</dt><dd><%= tr.reviewed_by_name ? tr.reviewed_by_name + ' · ' + fmt.datetime(tr.reviewed_at) : '—' %></dd></div>
+      <% if (tr.note) { %><div><dt>Ghi chú</dt><dd><%= tr.note %></dd></div><% } %>
+    </dl>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">Hàng chuyển</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Tình trạng</th><th class="num">SL</th><th>Từ vị trí</th><th class="num">Tồn ô đi</th><th>Đến vị trí</th><th>Ô đến đang chứa</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => {
+             const pending = tr.status !== 'APPROVED';
+             const short = pending && (i.from_qty || 0) < i.quantity;
+             const conflict = pending && i.to_qty > 0 && i.to_status !== i.stock_status; %>
+          <tr class="<%= short || conflict ? 'table-danger' : '' %>">
+            <td class="mono"><%= i.sku %></td><td><%- L.badge('stockStatus', i.stock_status) %></td><td class="num fw-semibold"><%= fmt.num(i.quantity) %></td>
+            <td class="mono"><%= i.from_code %></td><td class="num"><%= fmt.num(i.from_qty || 0) %><% if (short) { %><div class="small text-danger">Không đủ hàng</div><% } %></td>
+            <td class="mono"><%= i.to_code %></td>
+            <td><% if (i.to_qty > 0) { %><%= fmt.num(i.to_qty) %> <%- L.badge('stockStatus', i.to_status) %><% } else { %><span class="text-body-secondary">trống</span><% } %>
+              <% if (conflict) { %><div class="small text-danger">Khác tình trạng, sẽ không duyệt được</div><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-5"><%- include('../partials/approvals', { approvals }) %></div>
+  <div class="col-lg-7"><%- include('../partials/history', { logs }) %></div>
+</div>
+<%- include('../partials/footer') %>

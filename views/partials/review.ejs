@@ -1,0 +1,21 @@
+<%# Khung duyệt / từ chối cho phiếu đang chờ duyệt. Tham số: base, doc, approvePerm %>
+<% if (doc.status === 'REJECTED' && doc.review_note) { %>
+  <div class="alert alert-danger"><strong>Bị từ chối:</strong> <%= doc.review_note %> <span class="small">(<%= doc.reviewed_by_name || '' %>, <%= fmt.datetime(doc.reviewed_at) %>)</span></div>
+<% } %>
+<% if (doc.status === 'PENDING_APPROVAL' && can(approvePerm)) { %>
+  <div class="card border-warning">
+    <div class="card-header bg-warning-subtle">Duyệt phiếu</div>
+    <div class="card-body row g-3">
+      <form method="post" action="<%= base %>/<%= doc.id %>/approve" class="col-md-6 d-flex flex-column gap-2" data-confirm="Duyệt phiếu <%= doc.code %>? Tồn kho sẽ thay đổi ngay.">
+        <label class="form-label mb-0" for="comment">Ghi chú khi duyệt</label>
+        <input class="form-control" id="comment" name="comment">
+        <div><button class="btn btn-success" type="submit"><i class="bi bi-check2-circle"></i> Duyệt phiếu</button></div>
+      </form>
+      <form method="post" action="<%= base %>/<%= doc.id %>/reject" class="col-md-6 d-flex flex-column gap-2">
+        <label class="form-label mb-0" for="reason">Lý do từ chối *</label>
+        <input class="form-control" id="reason" name="reason" required>
+        <div><button class="btn btn-outline-danger" type="submit"><i class="bi bi-x-circle"></i> Từ chối</button></div>
+      </form>
+    </div>
+  </div>
+<% } %>

@@ -1,5 +1,5 @@
 const { AppError } = require('../lib/errors');
-const { label } = require('../lib/labels');
+const { label, LABELS } = require('../lib/labels');
 const { addStock, checkLocationStatus } = require('./stock');
 const { audit } = require('../lib/audit');
 
@@ -17,59 +17,99 @@ async function poLines(conn, poId, excludeGrId = 0) {
   return rows;
 }
 
-// Kiểm tra các dòng phiếu nhập; dùng khi lưu, gửi duyệt và duyệt
-async function validateLines(conn, { poId, warehouseId, grId = 0, items, checkLocations = false, checkIssueType = true }) {
-  if (!items.length) throw new AppError('Nhập số lượng cho ít nhất 1 dòng hàng.');
-  const lines = await poLines(conn, poId, grId);
-  const byId = new Map(lines.map((l) => [l.id, l]));
-  const [locs] = await conn.query('SELECT id, code FROM warehouse_locations WHERE warehouse_id = ? AND is_active = 1', [warehouseId]);
+// Một dòng PO trong phiếu nhập:
+//   { purchase_order_item_id, alloc: [{ location_id, quantity }], issues: [{ issue_type, quantity, description }] }
+// alloc: hàng đạt chia vào nhiều vị trí; issues: nhiều loại phát sinh (không vào tồn)
+
+// Kiểm tra các dòng; dùng khi lưu, gửi duyệt và duyệt. Trả về các dòng có số lượng.
+async function validateLines(conn, { poId, warehouseId, grId = 0, lines, checkLocations = false }) {
+  const filled = lines
+    .map((l) => ({
+      ...l,
+      alloc: (l.alloc || []).filter((a) => a.quantity || a.location_id),
+      issues: (l.issues || []).filter((x) => x.quantity || x.issue_type || x.description),
+    }))
+    .filter((l) => l.alloc.length || l.issues.length);
+  if (!filled.length) throw new AppError('Nhập số lượng cho ít nhất 1 dòng hàng.');
+  const poLinesById = new Map((await poLines(conn, poId, grId)).map((l) => [l.id, l]));
+  const [locs] = await conn.query('SELECT id FROM warehouse_locations WHERE warehouse_id = ? AND is_active = 1', [warehouseId]);
   const locIds = new Set(locs.map((l) => l.id));
-  for (const it of items) {
-    const line = byId.get(it.purchase_order_item_id);
+  const seenLine = new Set();
+  for (const l of filled) {
+    const line = poLinesById.get(l.purchase_order_item_id);
     if (!line) throw new AppError('Dòng hàng không thuộc phiếu mua.');
-    if (it.quantity_accepted < 0 || it.quantity_issue < 0) throw new AppError(`${line.sku}: số lượng không được âm.`);
-    if (it.quantity_accepted > line.remaining) {
+    if (seenLine.has(line.id)) throw new AppError(`${line.sku}: dòng hàng bị lặp.`);
+    seenLine.add(line.id);
+    l.variant_id = line.variant_id;
+    const seenLoc = new Set();
+    let accepted = 0;
+    for (const a of l.alloc) {
+      if (!(a.quantity > 0)) throw new AppError(`${line.sku}: số lượng nhập vào vị trí phải lớn hơn 0.`);
+      if (!locIds.has(a.location_id)) throw new AppError(`${line.sku}: chọn vị trí cất hàng trong kho.`);
+      if (seenLoc.has(a.location_id)) throw new AppError(`${line.sku}: một vị trí bị chọn 2 lần, hãy gộp số lượng.`);
+      seenLoc.add(a.location_id);
+      accepted += a.quantity;
+      if (checkLocations) {
+        const conflict = await checkLocationStatus(conn, a.location_id, line.variant_id, 'NEW');
+        if (conflict) throw new AppError(`${line.sku}: ${conflict} Hãy chọn vị trí khác.`);
+      }
+    }
+    if (accepted > line.remaining) {
       throw new AppError(
-        `${line.sku}: SL đạt ${it.quantity_accepted} vượt số còn được nhập ${Math.max(line.remaining, 0)} ` +
+        `${line.sku}: SL đạt ${accepted} vượt số còn được nhập ${Math.max(line.remaining, 0)} ` +
           `(mua ${line.quantity_ordered}, đã nhập ${line.quantity_received}, đang chờ duyệt ${line.qty_pending}).`
       );
     }
-    if (it.quantity_accepted > 0 && !locIds.has(it.location_id)) throw new AppError(`${line.sku}: chọn vị trí cất hàng trong kho.`);
-    if (checkIssueType && it.quantity_issue > 0 && !it.issue_type) throw new AppError(`${line.sku}: chọn loại phát sinh.`);
-    if (checkLocations && it.quantity_accepted > 0) {
-      const conflict = await checkLocationStatus(conn, it.location_id, line.variant_id, 'NEW');
-      if (conflict) throw new AppError(`${line.sku}: ${conflict} Hãy chọn vị trí khác.`);
+    for (const x of l.issues) {
+      if (!(x.quantity > 0)) throw new AppError(`${line.sku}: số lượng phát sinh phải lớn hơn 0.`);
+      if (!LABELS.issueType[x.issue_type]) throw new AppError(`${line.sku}: chọn loại phát sinh.`);
     }
-    it.variant_id = line.variant_id;
+    l.accepted = accepted;
+    l.issueTotal = l.issues.reduce((n, x) => n + x.quantity, 0);
   }
+  return filled;
 }
 
-async function saveItems(conn, req, grId, items) {
+async function saveItems(conn, req, grId, lines) {
   await conn.query('DELETE FROM goods_receipt_items WHERE goods_receipt_id = ?', [grId]);
-  for (const it of items) {
-    const [r] = await conn.query('INSERT INTO goods_receipt_items SET ?', [
-      {
-        goods_receipt_id: grId,
-        purchase_order_item_id: it.purchase_order_item_id,
-        variant_id: it.variant_id,
-        location_id: it.quantity_accepted > 0 ? it.location_id : it.location_id || null,
-        quantity_accepted: it.quantity_accepted,
-        quantity_issue: it.quantity_issue,
-        note: it.note,
-      },
-    ]);
-    if (it.quantity_issue > 0) {
+  for (const l of lines) {
+    const base = { goods_receipt_id: grId, purchase_order_item_id: l.purchase_order_item_id, variant_id: l.variant_id };
+    let issueItemId = null;
+    for (const [j, a] of l.alloc.entries()) {
+      // Phát sinh gắn vào dòng vị trí đầu tiên để tổng SL giao của dòng PO đúng
+      const [r] = await conn.query('INSERT INTO goods_receipt_items SET ?', [
+        { ...base, location_id: a.location_id, quantity_accepted: a.quantity, quantity_issue: j === 0 ? l.issueTotal : 0 },
+      ]);
+      if (j === 0) issueItemId = r.insertId;
+    }
+    if (l.issues.length && !issueItemId) {
+      const [r] = await conn.query('INSERT INTO goods_receipt_items SET ?', [{ ...base, location_id: null, quantity_accepted: 0, quantity_issue: l.issueTotal }]);
+      issueItemId = r.insertId;
+    }
+    for (const x of l.issues) {
       await conn.query('INSERT INTO goods_receipt_issues SET ?', [
-        {
-          goods_receipt_item_id: r.insertId,
-          issue_type: it.issue_type,
-          quantity: it.quantity_issue,
-          description: it.issue_description,
-          created_by: req.session.user.id,
-        },
+        { goods_receipt_item_id: issueItemId, issue_type: x.issue_type, quantity: x.quantity, description: x.description || null, created_by: req.session.user.id },
       ]);
     }
   }
+}
+
+// Dòng đã lưu -> dạng lines
+async function linesFromDb(conn, grId) {
+  const [items] = await conn.query('SELECT * FROM goods_receipt_items WHERE goods_receipt_id = ? ORDER BY id', [grId]);
+  const [issues] = await conn.query(
+    `SELECT x.*, gi.purchase_order_item_id FROM goods_receipt_issues x JOIN goods_receipt_items gi ON gi.id = x.goods_receipt_item_id
+      WHERE gi.goods_receipt_id = ? ORDER BY x.id`,
+    [grId]
+  );
+  const map = new Map();
+  const get = (id) => {
+    if (!map.has(id)) map.set(id, { purchase_order_item_id: id, alloc: [], issues: [] });
+    return map.get(id);
+  };
+  items.forEach((i) => { if (i.quantity_accepted > 0) get(i.purchase_order_item_id).alloc.push({ location_id: i.location_id, quantity: i.quantity_accepted }); });
+  issues.forEach((x) => get(x.purchase_order_item_id).issues.push({ issue_type: x.issue_type, quantity: x.quantity, description: x.description }));
+  return [...map.values()];
 }
 
 async function logApproval(conn, req, grId, action, from, to, comment = null) {
@@ -87,14 +127,8 @@ async function approve(conn, req, grId) {
   const [[po]] = await conn.query('SELECT id, status FROM purchase_orders WHERE id = ? FOR UPDATE', [gr.purchase_order_id]);
   if (!['CONFIRMED', 'PARTIALLY_RECEIVED'].includes(po.status)) throw new AppError(`Phiếu mua đang "${label('poStatus', po.status)}", không nhập thêm được.`);
 
+  await validateLines(conn, { poId: gr.purchase_order_id, warehouseId: gr.warehouse_id, grId, lines: await linesFromDb(conn, grId) });
   const [items] = await conn.query('SELECT * FROM goods_receipt_items WHERE goods_receipt_id = ?', [grId]);
-  await validateLines(conn, {
-    poId: gr.purchase_order_id,
-    warehouseId: gr.warehouse_id,
-    grId,
-    items: items.map((i) => ({ ...i })),
-    checkIssueType: false,
-  });
 
   for (const it of items) {
     const [[line]] = await conn.query('SELECT * FROM purchase_order_items WHERE id = ? FOR UPDATE', [it.purchase_order_item_id]);
@@ -139,4 +173,4 @@ async function approve(conn, req, grId) {
   await logApproval(conn, req, grId, 'APPROVE', 'PENDING_APPROVAL', 'APPROVED', req.body.comment || null);
 }
 
-module.exports = { poLines, validateLines, saveItems, approve, logApproval };
+module.exports = { poLines, validateLines, saveItems, linesFromDb, approve, logApproval };

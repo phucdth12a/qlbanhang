@@ -2,8 +2,8 @@
 document.querySelectorAll('[data-lines]').forEach((wrap) => {
   const tbody = wrap.querySelector('tbody[data-lines-body]');
   const tpl = wrap.querySelector('template[data-line-template]');
-  let next = tbody.querySelectorAll('tr').length;
-  wrap.querySelectorAll('[data-add-line]').forEach((btn) =>
+  let next = tbody.querySelectorAll(':scope > tr').length;
+  wrap.querySelectorAll('[data-add-line]').forEach((btn) => btn.closest('[data-lines]') === wrap &&
     btn.addEventListener('click', () => {
       const html = tpl.innerHTML.replace(/__i__/g, String(next++));
       tbody.insertAdjacentHTML('beforeend', html);
@@ -15,9 +15,14 @@ document.querySelectorAll('[data-lines]').forEach((wrap) => {
   );
   wrap.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-remove-line]');
-    if (!btn) return;
-    if (tbody.querySelectorAll('tr').length <= 1) return;
-    btn.closest('tr').remove();
+    if (!btn || btn.closest('[data-lines]') !== wrap) return;
+    const row = btn.closest('tr');
+    if (tbody.querySelectorAll(':scope > tr').length <= 1) {
+      // dòng cuối: xoá trắng thay vì bỏ dòng
+      row.querySelectorAll('input:not([type=hidden]), select').forEach((el) => (el.value = ''));
+    } else {
+      row.remove();
+    }
     wrap.dispatchEvent(new Event('input', { bubbles: true }));
   });
 });
@@ -29,26 +34,28 @@ document.addEventListener('submit', (e) => {
   if (msg && !window.confirm(msg)) e.preventDefault();
 });
 
-// Ô chọn vị trí chỉ hiện vị trí thuộc kho đang chọn
-const whSelect = document.querySelector('[data-warehouse-select]');
+// Ô chọn vị trí chỉ hiện vị trí thuộc kho đang chọn.
+// <select data-warehouse-select="from"> lọc các <select data-location-select="from">; không ghi giá trị thì dùng chung nhóm ''.
+const whSelects = document.querySelectorAll('[data-warehouse-select]');
 function filterLocations(scope = document) {
-  if (!whSelect) return;
-  const wh = whSelect.value;
-  scope.querySelectorAll('select[data-location-select]').forEach((sel) => {
-    sel.querySelectorAll('option[data-warehouse]').forEach((opt) => {
-      const show = opt.dataset.warehouse === wh;
-      opt.hidden = !show;
-      opt.disabled = !show;
-      if (!show && opt.selected) sel.value = '';
+  whSelects.forEach((wsel) => {
+    const key = wsel.dataset.warehouseSelect || '';
+    const wh = wsel.value;
+    scope.querySelectorAll('select[data-location-select]').forEach((sel) => {
+      if ((sel.dataset.locationSelect || '') !== key) return;
+      sel.querySelectorAll('option[data-warehouse]').forEach((opt) => {
+        const show = opt.dataset.warehouse === wh;
+        opt.hidden = !show;
+        opt.disabled = !show;
+        if (!show && opt.selected) sel.value = '';
+      });
     });
   });
 }
-if (whSelect) {
-  whSelect.addEventListener('change', () => filterLocations());
-  filterLocations();
-}
+whSelects.forEach((wsel) => wsel.addEventListener('change', () => filterLocations()));
+filterLocations();
 
-// Tính thành tiền phiếu mua hàng
+// Tính thành tiền phiếu mua hàng / đơn bán hàng
 const poForm = document.querySelector('[data-po-form]');
 if (poForm) {
   const nf = new Intl.NumberFormat('vi-VN');
@@ -71,10 +78,10 @@ if (poForm) {
   };
   poForm.addEventListener('input', recalc);
   poForm.addEventListener('change', (e) => {
-    // chọn biến thể -> điền giá vốn gợi ý nếu ô giá đang trống
+    // chọn biến thể -> điền giá gợi ý (giá vốn cho PO, giá bán cho đơn bán) nếu ô giá đang trống
     const sel = e.target.closest('[data-variant]');
     if (sel) {
-      const price = sel.selectedOptions[0]?.dataset.cost;
+      const price = sel.selectedOptions[0]?.dataset.defaultPrice;
       const input = sel.closest('tr').querySelector('[data-price]');
       if (price && input && !input.value) input.value = price;
     }

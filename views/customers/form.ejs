@@ -1,0 +1,34 @@
+<%- include('../partials/header') %>
+<% const editable = can('customers.manage'); %>
+<%- include('../partials/pagehead', { heading: c.id ? c.name : 'Thêm khách hàng', back: '/customers',
+  actions: (c.id && can('so.manage') ? `<a class="btn btn-primary" href="/sales-orders/new?customer_id=${c.id}"><i class="bi bi-bag-plus"></i> Tạo đơn bán</a>` : '') +
+           (c.id && editable ? `<form method="post" action="/customers/${c.id}/delete" data-confirm="Xoá khách hàng ${c.code}?"><button class="btn btn-outline-danger" type="submit"><i class="bi bi-trash"></i> Xoá</button></form>` : '') }) %>
+<%- include('../partials/formerror') %>
+<form method="post" action="/customers<%= c.id ? '/' + c.id : '' %>" class="card">
+  <fieldset class="card-body row g-3" <%= editable ? '' : 'disabled' %>>
+    <div class="col-md-3"><label class="form-label" for="code">Mã *</label><input class="form-control mono" id="code" name="code" value="<%= c.code || '' %>" placeholder="KH0003" required></div>
+    <div class="col-md-9"><label class="form-label" for="name">Tên khách hàng *</label><input class="form-control" id="name" name="name" value="<%= c.name || '' %>" required></div>
+    <div class="col-md-4"><label class="form-label" for="phone">Điện thoại</label><input class="form-control" id="phone" name="phone" value="<%= c.phone || '' %>"></div>
+    <div class="col-md-4"><label class="form-label" for="email">Email</label><input class="form-control" id="email" name="email" type="email" value="<%= c.email || '' %>"></div>
+    <div class="col-md-4 d-flex align-items-end"><div class="form-check"><input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="1" <%= c.is_active ? 'checked' : '' %>><label class="form-check-label" for="is_active">Đang giao dịch</label></div></div>
+    <div class="col-12"><label class="form-label" for="address">Địa chỉ giao hàng</label><input class="form-control" id="address" name="address" value="<%= c.address || '' %>"></div>
+    <div class="col-12"><label class="form-label" for="note">Ghi chú</label><textarea class="form-control" id="note" name="note" rows="2"><%= c.note || '' %></textarea></div>
+  </fieldset>
+  <% if (editable) { %><div class="card-footer d-flex gap-2"><button class="btn btn-primary" type="submit">Lưu</button><a class="btn btn-outline-secondary" href="/customers">Huỷ</a></div><% } %>
+</form>
+<% if (c.id) { %>
+  <div class="card">
+    <div class="card-header">Đơn bán gần đây</div>
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead><tr><th>Mã đơn</th><th>Ngày</th><th>Trạng thái</th><th class="num">Tổng tiền</th></tr></thead>
+        <tbody>
+          <% if (!orders.length) { %><tr><td colspan="4" class="text-body-secondary">Chưa có đơn bán.</td></tr><% } %>
+          <% orders.forEach(o => { %><tr><td><a class="mono" href="/sales-orders/<%= o.id %>"><%= o.code %></a></td><td><%= fmt.date(o.order_date) %></td><td><%- L.badge('soStatus', o.status) %></td><td class="num"><%= fmt.money(o.total_amount) %></td></tr><% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <%- include('../partials/history', { logs }) %>
+<% } %>
+<%- include('../partials/footer') %>

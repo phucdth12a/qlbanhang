@@ -22,7 +22,7 @@
           <tr>
             <td class="text-nowrap"><%= fmt.datetime(t.created_at) %></td>
             <td><%- L.badge('txType', t.transaction_type) %></td>
-            <td><% if (t.ref_code) { %><a class="mono" href="/<%= t.reference_type === 'goods_receipt' ? 'goods-receipts' : 'returns' %>/<%= t.reference_id %>"><%= t.ref_code %></a><% } %></td>
+            <td><% if (t.ref_code) { %><a class="mono" href="/<%= ({ goods_receipt: 'goods-receipts', return_receipt: 'returns', goods_issue: 'goods-issues', stock_transfer: 'transfers', stock_adjustment: 'adjustments' })[t.reference_type] %>/<%= t.reference_id %>"><%= t.ref_code %></a><% } %></td>
             <td class="mono"><%= t.warehouse_code %></td>
             <td class="mono"><%= t.location_code %></td>
             <td class="mono"><%= t.sku %></td>

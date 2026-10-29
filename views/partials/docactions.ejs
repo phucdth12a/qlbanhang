@@ -1,0 +1,6 @@
+<%# Nút Sửa / Gửi duyệt / Huỷ cho phiếu Nháp hoặc bị Từ chối. Tham số: base, doc, createPerm %>
+<% if (can(createPerm) && ['DRAFT', 'REJECTED'].includes(doc.status)) { %>
+  <a class="btn btn-outline-secondary" href="<%= base %>/<%= doc.id %>/edit"><i class="bi bi-pencil"></i> Sửa</a>
+  <form method="post" action="<%= base %>/<%= doc.id %>/submit"><button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> Gửi duyệt</button></form>
+  <form method="post" action="<%= base %>/<%= doc.id %>/cancel" data-confirm="Huỷ phiếu <%= doc.code %>?"><button class="btn btn-outline-danger" type="submit">Huỷ phiếu</button></form>
+<% } %>

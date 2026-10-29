@@ -54,6 +54,10 @@ app.use(async (req, res, next) => {
     const [c] = await db.query(
       `SELECT (SELECT COUNT(*) FROM goods_receipts WHERE status = 'PENDING_APPROVAL') AS gr,
               (SELECT COUNT(*) FROM return_receipts WHERE status = 'PENDING_APPROVAL') AS rr,
+              (SELECT COUNT(*) FROM goods_issues WHERE status = 'PENDING_APPROVAL') AS gi,
+              (SELECT COUNT(*) FROM stock_transfers WHERE status = 'PENDING_APPROVAL') AS tr,
+              (SELECT COUNT(*) FROM stock_adjustments WHERE status = 'PENDING_APPROVAL') AS adj,
+              (SELECT COUNT(*) FROM sales_orders WHERE status IN ('CONFIRMED','PARTIALLY_SHIPPED')) AS so_open,
               (SELECT COUNT(*) FROM goods_receipt_issues x JOIN goods_receipt_items gi ON gi.id = x.goods_receipt_item_id JOIN goods_receipts g ON g.id = gi.goods_receipt_id
                  WHERE x.status NOT IN ('RESOLVED','REJECTED') AND g.status IN ('PENDING_APPROVAL','APPROVED')) AS issues`
     );
@@ -75,6 +79,11 @@ app.use('/purchase-orders', require('./routes/purchaseOrders'));
 app.use('/goods-receipts', require('./routes/goodsReceipts'));
 app.use('/issues', require('./routes/issues'));
 app.use('/returns', require('./routes/returns'));
+app.use('/customers', require('./routes/customers'));
+app.use('/sales-orders', require('./routes/salesOrders'));
+app.use('/goods-issues', require('./routes/goodsIssues'));
+app.use('/transfers', require('./routes/transfers'));
+app.use('/adjustments', require('./routes/adjustments'));
 app.use('/audit', require('./routes/audit'));
 
 app.use((req, res) => {

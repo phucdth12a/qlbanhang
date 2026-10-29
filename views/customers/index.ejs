@@ -1,0 +1,28 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Khách hàng', actions: can('customers.manage') ? '<a class="btn btn-primary" href="/customers/new"><i class="bi bi-plus-lg"></i> Thêm khách hàng</a>' : '' }) %>
+<form class="filters" method="get">
+  <div class="grow"><label class="form-label small" for="q">Tìm kiếm</label><input class="form-control" id="q" name="q" value="<%= q %>" placeholder="Mã, tên, số điện thoại"></div>
+  <div><button class="btn btn-outline-primary" type="submit"><i class="bi bi-search"></i> Lọc</button></div>
+</form>
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Mã</th><th>Tên</th><th>Điện thoại</th><th>Địa chỉ</th><th class="num">Số đơn</th><th class="num">Doanh số</th><th>Trạng thái</th></tr></thead>
+      <tbody>
+        <% if (!customers.length) { %><tr><td colspan="7"><div class="empty-state"><i class="bi bi-person-lines-fill"></i>Chưa có khách hàng.</div></td></tr><% } %>
+        <% customers.forEach(c => { %>
+          <tr>
+            <td><a class="mono" href="/customers/<%= c.id %>"><%= c.code %></a></td>
+            <td><a class="text-reset" href="/customers/<%= c.id %>"><%= c.name %></a></td>
+            <td><%= c.phone || '' %></td>
+            <td><%= c.address || '' %></td>
+            <td class="num"><%= c.so_count %></td>
+            <td class="num"><%= fmt.money(c.revenue) %></td>
+            <td><%- c.is_active ? '<span class="badge text-bg-success">Hoạt động</span>' : '<span class="badge text-bg-secondary">Ngừng</span>' %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('../partials/footer') %>

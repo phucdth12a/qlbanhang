@@ -3,6 +3,7 @@ const L = {
   role: {
     ADMIN: ['Quản trị', 'dark'],
     PURCHASER: ['Thu mua', 'primary'],
+    SALES: ['Bán hàng', 'warning'],
     WAREHOUSE_STAFF: ['Nhân viên kho', 'info'],
     WAREHOUSE_MANAGER: ['Quản lý kho', 'success'],
   },
@@ -13,6 +14,21 @@ const L = {
     RECEIVED: ['Đã nhập đủ', 'success'],
     CLOSED: ['Đã đóng', 'dark'],
     CANCELLED: ['Đã huỷ', 'danger'],
+  },
+  soStatus: {
+    DRAFT: ['Nháp', 'secondary'],
+    CONFIRMED: ['Đã xác nhận', 'primary'],
+    PARTIALLY_SHIPPED: ['Xuất một phần', 'warning'],
+    SHIPPED: ['Đã xuất đủ', 'success'],
+    CLOSED: ['Đã đóng', 'dark'],
+    CANCELLED: ['Đã huỷ', 'danger'],
+  },
+  giPurpose: {
+    SALE: ['Xuất bán hàng', 'primary'],
+    RETURN_TO_SUPPLIER: ['Trả nhà cung cấp', 'warning'],
+    DISPOSAL: ['Huỷ hàng', 'danger'],
+    INTERNAL_USE: ['Dùng nội bộ', 'info'],
+    OTHER: ['Khác', 'secondary'],
   },
   docStatus: {
     DRAFT: ['Nháp', 'secondary'],

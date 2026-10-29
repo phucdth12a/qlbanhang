@@ -1,0 +1,93 @@
+<%- include('../partials/header') %>
+<%
+  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const isSale = gi.purpose === 'SALE';
+  const backUrl = gi.id ? '/goods-issues/' + gi.id : (isSale ? '/sales-orders/' + gi.sales_order_id : '/goods-issues');
+%>
+<%- include('../partials/pagehead', { heading: title, back: backUrl,
+  sub: L.badge('giPurpose', gi.purpose) + (isSale && so ? ` Đơn <a class="mono" href="/sales-orders/${so.id}">${so.code}</a> · ${esc(so.customer_name)}` : '') }) %>
+<%- include('../partials/formerror') %>
+<form method="post" action="/goods-issues<%= gi.id ? '/' + gi.id : '' %>" class="d-flex flex-column gap-3">
+  <input type="hidden" name="purpose" value="<%= gi.purpose %>">
+  <% if (isSale) { %><input type="hidden" name="sales_order_id" value="<%= gi.sales_order_id %>"><input type="hidden" name="warehouse_id" value="<%= gi.warehouse_id %>"><% } %>
+  <div class="card">
+    <div class="card-body row g-3">
+      <% if (!isSale) { %>
+        <div class="col-md-4"><label class="form-label" for="warehouse_id">Kho xuất *</label>
+          <select class="form-select" id="warehouse_id" name="warehouse_id" data-warehouse-select required>
+            <% warehouses.forEach(w => { %><option value="<%= w.id %>" <%= String(gi.warehouse_id) === String(w.id) ? 'selected' : '' %>><%= w.name %></option><% }) %>
+          </select>
+        </div>
+        <% if (gi.purpose === 'RETURN_TO_SUPPLIER') { %>
+          <div class="col-md-4"><label class="form-label" for="supplier_id">Trả cho nhà cung cấp *</label>
+            <select class="form-select" id="supplier_id" name="supplier_id" required><option value="">— Chọn —</option>
+              <% suppliers.forEach(s => { %><option value="<%= s.id %>" <%= String(gi.supplier_id) === String(s.id) ? 'selected' : '' %>><%= s.name %></option><% }) %>
+            </select>
+          </div>
+        <% } %>
+      <% } %>
+      <div class="col-md-4"><label class="form-label" for="issue_date">Ngày xuất</label><input class="form-control" type="date" id="issue_date" name="issue_date" value="<%= gi.issue_date || '' %>"></div>
+      <div class="col-md"><label class="form-label" for="note">Ghi chú</label><input class="form-control" id="note" name="note" value="<%= gi.note || '' %>"></div>
+    </div>
+  </div>
+
+  <% if (isSale) { %>
+    <div class="card">
+      <div class="card-header">Lấy hàng theo đơn</div>
+      <div class="card-body pb-0 small text-body-secondary">Chọn vị trí lấy hàng mới cho từng sản phẩm. Một sản phẩm lấy được từ nhiều vị trí, bấm "+ Vị trí" để thêm.</div>
+      <div class="table-responsive">
+        <table class="table mb-0 lines-table">
+          <thead><tr><th>Sản phẩm</th><th class="num">Đặt</th><th class="num">Đã xuất</th><th class="num">Còn phải xuất</th><th>Lấy từ vị trí · SL</th></tr></thead>
+          <tbody>
+            <% lines.forEach((l, i) => {
+                 const opt = (sel) => '<option value="">— Vị trí —</option>' + l.stocks.map(s => `<option value="${s.id}" ${String(sel) === String(s.id) ? 'selected' : ''}>${esc(s.location_code)} · còn ${s.quantity}</option>`).join('');
+                 const row = (a, j) => `<tr><td><select class="form-select form-select-sm" name="lines[${i}][alloc][${j}][stock_id]" aria-label="Vị trí lấy ${esc(l.sku)}" style="min-width:160px">${opt(a.stock_id)}</select></td>
+                   <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="lines[${i}][alloc][${j}][quantity]" value="${a.quantity || ''}" aria-label="SL lấy ${esc(l.sku)}" style="width:90px"></td>
+                   <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá"><i class="bi bi-x-lg"></i></button></td></tr>`; %>
+              <tr>
+                <td><input type="hidden" name="lines[<%= i %>][so_item_id]" value="<%= l.id %>"><div class="mono"><%= l.sku %></div><div class="small text-body-secondary"><%= l.name %></div></td>
+                <td class="num"><%= fmt.num(l.quantity_ordered) %></td>
+                <td class="num"><%= fmt.num(l.quantity_shipped) %><% if (l.qty_pending) { %><div class="small text-warning-emphasis">+<%= l.qty_pending %> chờ duyệt</div><% } %></td>
+                <td class="num fw-semibold"><%= fmt.num(Math.max(l.remaining, 0)) %></td>
+                <td>
+                  <% if (!l.stocks.length) { %><span class="text-danger small">Kho không còn hàng mới của sản phẩm này.</span><% } else { %>
+                  <div data-lines class="d-flex flex-column gap-1">
+                    <table class="table table-sm table-borderless mb-0"><tbody data-lines-body><%- l.alloc.map((a, j) => row(a, j)).join('') %></tbody></table>
+                    <template data-line-template><%- row({}, '__i__') %></template>
+                    <div><button class="btn btn-sm btn-link p-0" type="button" data-add-line>+ Vị trí</button></div>
+                  </div>
+                  <% } %>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } else {
+       const opt = (sel) => '<option value="">— Chọn hàng trong kho —</option>' + stocks.map(s => `<option value="${s.id}" data-warehouse="${s.warehouse_id}" ${String(sel) === String(s.id) ? 'selected' : ''}>${esc(s.location_code)} · ${esc(s.sku)} · ${L.label('stockStatus', s.stock_status)} · còn ${s.quantity}</option>`).join('');
+       const line = (it, i) => `<tr>
+         <td><select class="form-select form-select-sm" name="items[${i}][stock_id]" data-location-select aria-label="Hàng xuất" style="min-width:320px">${opt(it.stock_id)}</select></td>
+         <td><input class="form-control form-control-sm text-end" type="number" min="1" step="1" name="items[${i}][quantity]" value="${it.quantity || ''}" aria-label="Số lượng"></td>
+         <td><input class="form-control form-control-sm" name="items[${i}][note]" value="${esc(it.note)}" aria-label="Ghi chú"></td>
+         <td><button class="btn btn-sm btn-outline-danger" type="button" data-remove-line aria-label="Xoá dòng"><i class="bi bi-x-lg"></i></button></td></tr>`; %>
+    <div class="card" data-lines>
+      <div class="card-header d-flex justify-content-between align-items-center"><span>Hàng xuất</span><button class="btn btn-sm btn-outline-primary" type="button" data-add-line><i class="bi bi-plus-lg"></i> Thêm dòng</button></div>
+      <div class="card-body pb-0 small text-body-secondary">Mỗi dòng chọn một ô hàng (vị trí · sản phẩm · tình trạng). Xuất hàng mới cho mục đích khác bán hàng sẽ không được lấy vào phần đang giữ cho đơn bán.</div>
+      <div class="table-responsive">
+        <table class="table mb-0 lines-table">
+          <thead><tr><th>Vị trí · sản phẩm · tình trạng</th><th class="num">SL</th><th>Ghi chú</th><th></th></tr></thead>
+          <tbody data-lines-body><%- items.map((it, i) => line(it, i)).join('') %></tbody>
+        </table>
+      </div>
+      <template data-line-template><%- line({}, '__i__') %></template>
+    </div>
+  <% } %>
+
+  <div class="d-flex flex-wrap gap-2">
+    <button class="btn btn-primary" type="submit" name="submit_now" value="1"><i class="bi bi-send"></i> Lưu và gửi duyệt</button>
+    <button class="btn btn-outline-primary" type="submit">Lưu nháp</button>
+    <a class="btn btn-outline-secondary" href="<%= backUrl %>">Huỷ</a>
+  </div>
+</form>
+<%- include('../partials/footer') %>

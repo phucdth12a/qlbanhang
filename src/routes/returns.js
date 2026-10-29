@@ -18,6 +18,7 @@ function parseForm(b) {
     warehouse_id: int(b.warehouse_id) || null,
     return_date: str(b.return_date) || today(),
     source_type: LABELS.returnSource[b.source_type] ? b.source_type : 'CUSTOMER',
+    sales_order_id: int(b.sales_order_id) || null,
     order_code: str(b.order_code),
     tracking_code: str(b.tracking_code),
     customer_name: str(b.customer_name),
@@ -67,6 +68,32 @@ async function validate(conn, header, items, { checkLocations }) {
   }
 }
 
+// Hàng trả theo đơn bán: chỉ trả được sản phẩm có trong đơn, tổng không vượt SL đã xuất - đã trả - đang chờ duyệt trả
+async function validateAgainstSo(conn, header, items, rrId = 0) {
+  if (!header.sales_order_id) {
+    items.forEach((it) => (it.sales_order_item_id = null));
+    return;
+  }
+  const [[so]] = await conn.query('SELECT id, code, warehouse_id FROM sales_orders WHERE id = ?', [header.sales_order_id]);
+  if (!so) throw new AppError('Đơn bán không tồn tại.');
+  const [lines] = await conn.query(
+    `SELECT i.id, i.variant_id, i.quantity_shipped, i.quantity_returned, v.sku,
+            (SELECT COALESCE(SUM(ri.quantity),0) FROM return_receipt_items ri JOIN return_receipts r ON r.id = ri.return_receipt_id
+              WHERE ri.sales_order_item_id = i.id AND r.status = 'PENDING_APPROVAL' AND r.id <> ?) AS qty_pending
+       FROM sales_order_items i JOIN product_variants v ON v.id = i.variant_id WHERE i.sales_order_id = ?`,
+    [rrId, so.id]
+  );
+  const byVariant = new Map(lines.map((l) => [l.variant_id, { ...l, sum: 0 }]));
+  for (const it of items) {
+    const l = byVariant.get(it.variant_id);
+    if (!l) throw new AppError(`Sản phẩm không có trong đơn ${so.code}.`);
+    l.sum += it.quantity;
+    const max = l.quantity_shipped - l.quantity_returned - l.qty_pending;
+    if (l.sum > max) throw new AppError(`${l.sku}: trả ${l.sum} vượt số có thể trả ${Math.max(max, 0)} của đơn ${so.code} (đã xuất ${l.quantity_shipped}, đã trả ${l.quantity_returned}).`);
+    it.sales_order_item_id = l.id;
+  }
+}
+
 async function saveItems(conn, id, items) {
   await conn.query('DELETE FROM return_receipt_items WHERE return_receipt_id = ?', [id]);
   for (const it of items) await conn.query('INSERT INTO return_receipt_items SET ?', [{ ...it, return_receipt_id: id }]);
@@ -85,6 +112,11 @@ async function renderForm(res, { rr, items, error, status = 200 }) {
     warehouses: await lookups.warehouses(),
     locations: await lookups.locations(),
     variants: await lookups.variants(),
+    salesOrders: await db.query(
+      `SELECT o.id, o.code, o.warehouse_id, c.name AS customer_name FROM sales_orders o JOIN customers c ON c.id = o.customer_id
+        WHERE o.status IN ('PARTIALLY_SHIPPED','SHIPPED','CLOSED') OR o.id = ? ORDER BY o.id DESC LIMIT 200`,
+      [rr.sales_order_id || 0]
+    ),
     error,
   });
 }
@@ -115,6 +147,18 @@ router.get(
   requirePerm('rr.create'),
   ah(async (req, res) => {
     const [w] = await lookups.warehouses();
+    const so = int(req.query.so)
+      ? await db.one('SELECT o.*, c.name AS customer_name, c.phone AS customer_phone FROM sales_orders o JOIN customers c ON c.id = o.customer_id WHERE o.id = ?', [int(req.query.so)])
+      : null;
+    if (so) {
+      const items = (await db.query('SELECT variant_id, quantity_shipped - quantity_returned AS q FROM sales_order_items WHERE sales_order_id = ? AND quantity_shipped > quantity_returned', [so.id]))
+        .map((i) => ({ variant_id: i.variant_id, stock_status: 'NEW', return_reason: null }));
+      return renderForm(res, {
+        rr: { return_date: today(), source_type: 'CUSTOMER', sales_order_id: so.id, warehouse_id: so.warehouse_id, order_code: so.code, customer_name: so.customer_name, customer_phone: so.customer_phone },
+        items,
+        error: null,
+      });
+    }
     await renderForm(res, { rr: { return_date: today(), source_type: 'CUSTOMER', warehouse_id: w ? w.id : null }, items: [], error: null });
   })
 );
@@ -134,6 +178,7 @@ router.post(
           if (!existing || !EDITABLE.includes(existing.status)) throw new AppError('Chỉ sửa được phiếu Nháp hoặc bị Từ chối.');
         }
         await validate(conn, header, items, { checkLocations: submitNow });
+        await validateAgainstSo(conn, header, items, id || 0);
         let rid = id;
         if (id) {
           const pick = (o) => Object.fromEntries(Object.keys(header).map((k) => [k, o[k]]));
@@ -164,8 +209,9 @@ router.get(
   '/:id(\\d+)',
   ah(async (req, res, next) => {
     const rr = await db.one(
-      `SELECT r.*, w.name AS warehouse_name, u.full_name AS created_by_name, v.full_name AS reviewed_by_name
+      `SELECT r.*, w.name AS warehouse_name, u.full_name AS created_by_name, v.full_name AS reviewed_by_name, so.code AS so_code
          FROM return_receipts r JOIN warehouses w ON w.id = r.warehouse_id JOIN users u ON u.id = r.created_by LEFT JOIN users v ON v.id = r.reviewed_by
+         LEFT JOIN sales_orders so ON so.id = r.sales_order_id
         WHERE r.id = ?`,
       [req.params.id]
     );
@@ -216,6 +262,7 @@ router.post(
       if (!EDITABLE.includes(rr.status)) throw new AppError('Phiếu không ở trạng thái Nháp / Từ chối.');
       const [items] = await conn.query('SELECT * FROM return_receipt_items WHERE return_receipt_id = ?', [id]);
       await validate(conn, rr, items, { checkLocations: true });
+      await validateAgainstSo(conn, rr, items, id);
       await conn.query("UPDATE return_receipts SET status = 'PENDING_APPROVAL', submitted_at = NOW() WHERE id = ?", [id]);
       await logApproval(conn, req, id, 'SUBMIT', rr.status, 'PENDING_APPROVAL');
     });
@@ -233,7 +280,11 @@ router.post(
       const [[rr]] = await conn.query('SELECT * FROM return_receipts WHERE id = ? FOR UPDATE', [id]);
       if (rr.status !== 'PENDING_APPROVAL') throw new AppError('Phiếu không ở trạng thái chờ duyệt.');
       const [items] = await conn.query('SELECT * FROM return_receipt_items WHERE return_receipt_id = ?', [id]);
+      await validateAgainstSo(conn, rr, items, id);
       for (const it of items) {
+        if (it.sales_order_item_id) {
+          await conn.query('UPDATE sales_order_items SET quantity_returned = quantity_returned + ? WHERE id = ?', [it.quantity, it.sales_order_item_id]);
+        }
         await addStock(conn, {
           warehouseId: rr.warehouse_id,
           locationId: it.location_id,

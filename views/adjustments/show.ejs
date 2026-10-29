@@ -1,0 +1,45 @@
+<%- include('../partials/header') %>
+<%- include('../partials/pagehead', { heading: 'Phiếu kiểm kê ' + adj.code, back: '/adjustments', sub: L.badge('docStatus', adj.status),
+  actions: include('../partials/docactions', { base: '/adjustments', doc: adj, createPerm: 'adj.create' }) }) %>
+<%- include('../partials/review', { base: '/adjustments', doc: adj, approvePerm: 'adj.approve' }) %>
+<div class="card">
+  <div class="card-body">
+    <dl class="dl-grid">
+      <div><dt>Kho</dt><dd><%= adj.warehouse_name %></dd></div>
+      <div><dt>Ngày kiểm</dt><dd><%= fmt.date(adj.adjustment_date) %></dd></div>
+      <div><dt>Lý do</dt><dd><%= adj.reason || '—' %></dd></div>
+      <div><dt>Người lập</dt><dd><%= adj.created_by_name %></dd></div>
+      <div><dt>Người duyệt</dt><dd><%= adj.reviewed_by_name ? adj.reviewed_by_name + ' · ' + fmt.datetime(adj.reviewed_at) : '—' %></dd></div>
+    </dl>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">Chênh lệch</div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead><tr><th>SKU</th><th>Vị trí</th><th>Tồn hệ thống</th><th>Đếm được</th><th class="num">Chênh lệch</th><th>Ghi chú</th></tr></thead>
+      <tbody>
+        <% items.forEach(i => {
+             const approved = adj.status === 'APPROVED';
+             const before = approved ? i.quantity_before : (i.cur_qty || 0);
+             const beforeStatus = approved ? null : i.cur_status;
+             const diff = i.quantity_counted - before;
+             const reclass = !approved && before > 0 && beforeStatus && beforeStatus !== i.stock_status; %>
+          <tr>
+            <td class="mono"><%= i.sku %></td><td class="mono"><%= i.location_code %></td>
+            <td><%= fmt.num(before) %> <% if (beforeStatus && before > 0) { %><%- L.badge('stockStatus', beforeStatus) %><% } %></td>
+            <td><%= fmt.num(i.quantity_counted) %> <%- L.badge('stockStatus', i.stock_status) %></td>
+            <td class="num fw-semibold <%= diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : '' %>"><%= diff > 0 ? '+' : '' %><%= fmt.num(diff) %></td>
+            <td><%= i.note || '' %><% if (reclass) { %><div class="small text-warning-emphasis">Đổi tình trạng toàn bộ hàng trong ô</div><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% if (adj.status !== 'APPROVED') { %><div class="card-footer small text-body-secondary">Tồn hệ thống là số hiện tại và có thể thay đổi đến lúc duyệt. Khi duyệt, hệ thống ghi lại tồn tại thời điểm đó.</div><% } %>
+</div>
+<div class="row g-3">
+  <div class="col-lg-5"><%- include('../partials/approvals', { approvals }) %></div>
+  <div class="col-lg-7"><%- include('../partials/history', { logs }) %></div>
+</div>
+<%- include('../partials/footer') %>
